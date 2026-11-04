@@ -1,0 +1,24 @@
+{
+  "_doc": "Spells (GDD 7). freeze is in ticks (5 s = 8, 10 s = 16, 15 s = 24, 20 s = 32). area 3 = 3x3 around the target. rune_limited: freeze spells, 30 casts per life unless Spell Satchel.",
+  "spells": [
+    {"id": "ember_dart",    "name": "Ember Dart",    "book": "elemental", "family": "ember",   "max_hit": 8,  "level": 1},
+    {"id": "root",          "name": "Root",          "book": "elemental", "family": "binding", "max_hit": 0,  "level": 2,  "freeze": 8,  "rune_limited": true},
+    {"id": "ember_bolt",    "name": "Ember Bolt",    "book": "elemental", "family": "ember",   "max_hit": 12, "level": 3},
+    {"id": "ember_blast",   "name": "Ember Blast",   "book": "elemental", "family": "ember",   "max_hit": 16, "level": 6},
+    {"id": "thorn_snare",   "name": "Thorn Snare",   "book": "elemental", "family": "binding", "max_hit": 3,  "level": 8,  "freeze": 16, "rune_limited": true},
+    {"id": "frost_shard",   "name": "Frost Shard",   "book": "forbidden", "family": "frost",   "max_hit": 18, "level": 11, "freeze": 8,  "rune_limited": true},
+    {"id": "ember_wave",    "name": "Ember Wave",    "book": "elemental", "family": "ember",   "max_hit": 20, "level": 12},
+    {"id": "frost_nova",    "name": "Frost Nova",    "book": "forbidden", "family": "frost",   "max_hit": 22, "level": 14, "freeze": 16, "area": 3, "rune_limited": true},
+    {"id": "bramble_grasp", "name": "Bramble Grasp", "book": "elemental", "family": "binding", "max_hit": 5,  "level": 17, "freeze": 24, "rune_limited": true},
+    {"id": "miasma_storm",  "name": "Miasma Storm",  "book": "forbidden", "family": "storm",   "max_hit": 27, "level": 18, "poison": true, "area": 3},
+    {"id": "frost_spear",   "name": "Frost Spear",   "book": "forbidden", "family": "frost",   "max_hit": 26, "level": 21, "freeze": 24, "rune_limited": true},
+    {"id": "leech_bolt",    "name": "Leech Bolt",    "book": "forbidden", "family": "leech",   "max_hit": 25, "level": 23, "heal_pct": 0.25},
+    {"id": "ember_surge",   "name": "Ember Surge",   "book": "elemental", "family": "ember",   "max_hit": 24, "level": 24},
+    {"id": "gloom_storm",   "name": "Gloom Storm",   "book": "forbidden", "family": "storm",   "max_hit": 28, "level": 26, "att_drain": 0.15, "area": 3},
+    {"id": "glacial_storm", "name": "Glacial Storm", "book": "forbidden", "family": "frost",   "max_hit": 30, "level": 30, "freeze": 32, "area": 3, "rune_limited": true},
+    {"id": "leech_storm",   "name": "Leech Storm",   "book": "forbidden", "family": "leech",   "max_hit": 29, "level": 32, "heal_pct": 0.25, "area": 3}
+  ],
+  "freeze_immunity_ticks": 8,
+  "unbound_immunity_ticks": 5,
+  "rune_casts_per_life": 30
+}

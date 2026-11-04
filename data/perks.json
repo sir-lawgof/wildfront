@@ -1,0 +1,20 @@
+{
+  "_doc": "Perks (GDD 6). Perks change options or resources, never flat accuracy/damage/defence.",
+  "perks": [
+    {"id": "extra_rations", "name": "Extra Rations", "tier": 1, "level": 1,  "desc": "+3 main food."},
+    {"id": "extra_brew",    "name": "Extra Brew",    "tier": 1, "level": 6,  "desc": "+1 brew and +1 restore potion."},
+    {"id": "spell_satchel", "name": "Spell Satchel", "tier": 1, "level": 9,  "desc": "Freeze spells cost no runes this life (otherwise 30 casts)."},
+    {"id": "snare_trap",    "name": "Snare Trap",    "tier": 1, "level": 17, "desc": "Place one trap (hotkey T). An enemy who steps on it is frozen 5 s."},
+    {"id": "spare_spec",    "name": "Spare Spec",    "tier": 1, "level": 32, "desc": "Start each life with 100% spec plus a 25% spec restore potion."},
+    {"id": "rebuke",        "name": "Rebuke",        "tier": 2, "level": 1,  "desc": "Hotkey T, every 30 s: the next hit taken reflects 75% of its damage.", "cooldown": 50, "reflect": 0.75},
+    {"id": "iron_will",     "name": "Iron Will",     "tier": 2, "level": 3,  "desc": "Prayer drains 25% slower."},
+    {"id": "fleet_foot",    "name": "Fleet Foot",    "tier": 2, "level": 8,  "desc": "Run energy drains 50% slower."},
+    {"id": "antivenom",     "name": "Antivenom",     "tier": 2, "level": 18, "desc": "Immune to poison and venom for the whole life."},
+    {"id": "steady_hand",   "name": "Steady Hand",   "tier": 2, "level": 22, "desc": "Special energy regenerates twice as fast."},
+    {"id": "unbound",       "name": "Unbound",       "tier": 3, "level": 1,  "desc": "Freeze immunity after a freeze lasts 3 s instead of 5."},
+    {"id": "quick_hands",   "name": "Quick Hands",   "tier": 3, "level": 11, "desc": "Up to 10 equips per tick instead of 8."},
+    {"id": "shadowstep",    "name": "Shadowstep",    "tier": 3, "level": 13, "desc": "Hidden from the Scrying Orb streak."},
+    {"id": "eagle_sight",   "name": "Eagle Sight",   "tier": 3, "level": 28, "desc": "See enemy overhead prayers from 5 tiles further away."},
+    {"id": "second_wind",   "name": "Second Wind",   "tier": 3, "level": 34, "desc": "Once per life, below 10 HP, heal 15 HP over 5 ticks."}
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "_doc": "Food and potions (GDD 2). timer: which eat/drink delay it uses. attack_delay: ticks added to the attack timer.",
+  "items": [
+    {"id": "pike", "name": "Fire-roast Pike", "kind": "food", "timer": "food", "heal": 20, "attack_delay": 3, "color": "#d9893b", "unlock": {"track": "combat", "level": 1}},
+    {"id": "kelp_roll", "name": "Spiced Kelp Roll", "kind": "food", "timer": "combo", "heal": 18, "attack_delay": 2, "color": "#4f8a3a", "unlock": {"track": "combat", "level": 3}},
+    {"id": "sanctum_brew", "name": "Sanctum Brew", "kind": "potion", "timer": "potion", "doses": 4, "effect": "brew", "color": "#e8d27a", "unlock": {"track": "combat", "level": 5}},
+    {"id": "restore_draught", "name": "Restore Draught", "kind": "potion", "timer": "potion", "doses": 4, "effect": "restore", "color": "#d45fa8", "unlock": {"track": "combat", "level": 5}},
+    {"id": "antidote", "name": "Antidote", "kind": "potion", "timer": "potion", "doses": 4, "effect": "antidote", "color": "#7ad46a", "unlock": {"track": "combat", "level": 15}},
+    {"id": "spec_tonic", "name": "Spec Tonic", "kind": "potion", "timer": "potion", "doses": 1, "effect": "spec_restore", "color": "#ffd23f"}
+  ],
+  "brew": {"heal_pct": 0.15, "heal_flat": 2, "max_overheal": 16, "def_pct": 0.20, "def_flat": 2, "lower_pct": 0.10, "lower_flat": 2},
+  "restore": {"stat_pct": 0.25, "stat_flat": 8, "prayer_pct": 0.25, "prayer_flat": 8},
+  "combat_boosts": {
+    "_doc": "Applied at spawn from combat level 8 (GDD 7 shared unlocks): 'each life starts boosted'.",
+    "attack": [5, 0.15], "strength": [5, 0.15], "defence": [5, 0.15], "ranged": [4, 0.10], "magic": [4, 0.0]
+  },
+  "boost_decay_ticks": 100,
+  "poison": {"damage": 4, "interval": 15, "hits": 5}
+}

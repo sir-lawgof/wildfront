@@ -1,0 +1,12 @@
+{
+  "_doc": "Gear tiers (GDD 7). Each tier is ~7% stronger. 'names' gives the material word used to build item names per family.",
+  "tiers": [
+    {"tier": 1, "level": 1,  "color": "#a8693a", "names": {"metal": "Bronze",     "wood": "Oak",      "hide": "Leather",       "robe": "Woven",      "staff": "Novice"}},
+    {"tier": 2, "level": 5,  "color": "#5f6266", "names": {"metal": "Iron",       "wood": "Willow",   "hide": "Hardleather",   "robe": "Apprentice", "staff": "Apprentice"}},
+    {"tier": 3, "level": 10, "color": "#b7bcc2", "names": {"metal": "Steel",      "wood": "Maple",    "hide": "Studded",       "robe": "Adept",      "staff": "Adept"}},
+    {"tier": 4, "level": 15, "color": "#3d5fc9", "names": {"metal": "Cobalt",     "wood": "Yew",      "hide": "Drakehide",     "robe": "Warlock",    "staff": "Warlock"}},
+    {"tier": 5, "level": 20, "color": "#3e9157", "names": {"metal": "Orichalcum", "wood": "Elder",    "hide": "Basilisk hide", "robe": "Archmage",   "staff": "Archmage"}},
+    {"tier": 6, "level": 28, "color": "#39c1d1", "names": {"metal": "Starmetal",  "wood": "Starwood", "hide": "Starhide",      "robe": "Starweave",  "staff": "Star"}},
+    {"tier": 7, "level": 36, "color": "#c23b2e", "names": {"metal": "Wyrmforged", "wood": "Wyrmwood", "hide": "Wyrmhide",      "robe": "Wyrmweave",  "staff": "Wyrmbone"}}
+  ]
+}
