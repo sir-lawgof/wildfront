@@ -26,3 +26,7 @@ mono_crash.*.json
 
 # Asset pipeline review screenshots (regenerate with: python tools/build_assets.py shots ...)
 art/previews/
+
+# Python bytecode from the Blender build scripts
+__pycache__/
+*.pyc

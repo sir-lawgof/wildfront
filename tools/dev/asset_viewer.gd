@@ -122,7 +122,7 @@ func show_subject(id: String, loadout: Array = []) -> void:
 			world.add_child(subject)
 			subject_kind = "gear"
 	else:
-		for cat in ["props", "fx", "characters", "gear"]:
+		for cat in ["env", "props", "fx", "characters", "gear"]:
 			var p := "res://assets/models/%s/%s.glb" % [cat, id]
 			if ResourceLoader.exists(p):
 				subject = (load(p) as PackedScene).instantiate()

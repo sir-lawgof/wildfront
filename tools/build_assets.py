@@ -127,6 +127,7 @@ def main():
     if "--only" in a:
         only = a[a.index("--only") + 1]
     run([sys.executable, os.path.join(ROOT, "art", "palette", "make_palette.py")])
+    run([sys.executable, os.path.join(ROOT, "art", "palette", "make_env_palette.py")])
     code, _ = run([t["godot"], "--headless", "--path", ROOT, "--script", "res://tools/dev/gen_gear_visuals.gd"],
                   quiet_filter=lambda l: l.startswith(("VISUALS", "MISSING")) or "SCRIPT ERROR" in l, timeout=120)
     if code != 0:

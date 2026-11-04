@@ -100,10 +100,47 @@ revisit; most are a single data value.
 - **Greyscale check:** neighbouring tiers differ in value except magic robes 2/3 and 6/7, which are close in grey;
   their silhouettes differ (staff heads, trims, glowing accents). Repaint `palette.png` if you want more contrast.
 
+## Environment art (docs/ENVIRONMENT.md, phases E0-E7)
+
+- **Kits per map** come from a new `"dressing"` block in each map JSON (`kit`, rectangle `styles`, `castles`).
+  Styles match a rectangle exactly or its point-mirrored copy: Castle Courtyard's 1x4 side lines are `hedge`, the
+  central 6x1 line is `arch`; two short Mirewatch lines are log `palisade`. Dressing never changes gameplay.
+- **Map themes** gained `sky_top`, `sky_horizon`, `sky_ground`, `cloud`, `cloud_cover`, `sun_*`, `ambient_energy`,
+  `fog_color`, `fog_density` and `weather` (snow, sand, fireflies, leaves).
+- **Rectangle classes:** 1-wide = wall line, 2x2 = small block, 2xN = rampart, 3x3+ = structure (thresholds in
+  `client/match/env/env_layout.gd`). Wall lines autotile per tile: straight (2 opposite neighbours), end (1), join
+  (corner/T/cross/single); neighbours include the border, ramparts and structures. Exposed faces get seeded face
+  decorations (icicles, vents, lanterns, vines, arrow slits, banners).
+- **Structures are built to the exact footprint** found in the map data (Frostgate 4x4 towers, Ember 6x5 houses);
+  the Blender build scans `data/maps` for sizes, so new maps just need a rebuild.
+- **Obelisks stand on walkable capture tiles**, so the "2.6 tall obelisk" is a flat rune plate (0.16 tall) plus a
+  crystal floating from 1.75 to 2.65: a clear landmark that never hides feet or looks like a blocker.
+- **Merged chunks instead of GridMap/MultiMesh.** The doc suggests GridMap + MultiMesh; merging every static piece
+  into a 4x4 grid of chunk meshes per map (variation baked into vertex colours) costs far fewer draw calls and
+  still culls what the camera can't see. Only friend/foe-tinted banners stay as small MultiMeshes.
+- **Characters are merged into one rigidly skinned mesh** (every vertex 100% on its part's bone, so they still
+  move as rigid segments): one draw call per player instead of ~25. Rebuilt on every equipment change.
+- **Render settings:** depth prepass off; one orthogonal sun shadow pass (40 tiles) instead of 2 splits; name
+  labels, HP bars, hitsplats and other billboards don't cast shadows. The renderer is unchanged (Forward+).
+- **Performance (Obelisks 5v5 bot matches, 1600x900, RTX 4070):** 165 fps (vsync cap) on all maps.
+  3D + shadow draw calls 25-137 and primitives 87k (Frostgate) to 140k (Castle) and 115-170k (Mirewatch at its
+  busiest framing). The existing HUD adds ~118 2D canvas draw calls on top of that; batching the HUD is UI work
+  for later. `--perf` prints these numbers every 5 s.
+- **Ground** is one generated mesh per map with layers: checker A/B, noise patches, wall edging, shores, spawn
+  paving, obelisk plazas, a Frostgate courtyard, and paths from `MapGrid.find_path` between spawns, obelisks
+  and the centre (wider on Ember). Mirewatch boardwalks are flat planks (0.04 tall) beside water and on paths.
+- **Water** is generated per tile with a shore factor in vertex colour; frozen (Frostgate) and murky (Mirewatch)
+  variants are shader options. Rims are 0.14 tall lips inside the water tiles.
+- **Occlusion cut-out** uses a global shader parameter (`player_pos`) set by the match view each frame.
+- **Traps:** the server already sent only the viewer's team's traps; the client now draws them.
+- **Palette tweaks after review:** Mirewatch walls were lightened (they matched the ground), Castle grass darkened.
+- **Placeholder map art** stays available behind Options -> "Placeholder map art" and `--placeholder-map` until
+  you approve the kits (ENVIRONMENT.md E6 says to remove it after approval).
+
 ## Not built yet (next steps)
 
 - Modes: Rune Ritual (Search and Destroy) and Hold the Banner. Private matches with custom rules. Ranked.
 - Prestige emblems and cape-trim visuals (prestige itself works). Title selection UI.
 - Art: spell particles and the freeze ice shell/shatter (A5), inventory icons rendered from models (A6),
-  environment kit and lighting pass (A7), jsfxr sounds (A8). Music, spectator camera, hosted demo (M11).
+  jsfxr sounds (A8). HUD draw-call batching. Music, spectator camera, hosted demo (M11).
 - Dedicated or headless server and internet play (LAN only for now).

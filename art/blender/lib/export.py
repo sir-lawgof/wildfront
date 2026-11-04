@@ -23,6 +23,7 @@ def export_glb(path, animations=False):
         export_materials="NONE",        # Godot's import script applies the shared palette material.
         export_texcoords=True,
         export_normals=True,             # flat faces -> split normals.
+        export_vertex_color="ACTIVE",    # environment pieces carry baked AO in vertex colours
         export_animations=animations,
         export_animation_mode="ACTIONS",  # each Blender action = one glTF animation (clip).
         export_force_sampling=True,

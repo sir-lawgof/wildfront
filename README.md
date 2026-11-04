@@ -83,7 +83,12 @@ python tools/build_assets.py check               # coverage, naming, triangle bu
 python tools/build_assets.py shots char:melee:1 --sheet          # screenshots into art/previews/
 python tools/build_assets.py shots base_body --anims walk,run,attack_slash
 G --path . res://tools/dev/asset_viewer.tscn     # interactive asset viewer
+G --path . res://tools/dev/map_shots.tscn -- --maps frostgate_ruins   # map screenshot sheets (art/previews/map_*.png)
 ```
+
+Maps are dressed from their gameplay data (see [`docs/ENVIRONMENT.md`](docs/ENVIRONMENT.md)): environment models
+live in `art/blender/env/`, the layout rules in `client/match/env/env_layout.gd`, and `tests/test_environment.gd`
+checks that the art never contradicts the map's blocking tiles.
 
 Recolour the whole game by painting `assets/palette/palette.png` (16 x 16 swatch cells, names in
 `assets/palette/palette.json`). Put a hand-made `art/manual/<asset-id>.blend` to override any generated model.
@@ -92,4 +97,5 @@ Recolour the whole game by painting `assets/palette/palette.png` (16 x 16 swatch
 
 Pass after `--` on the command line: `--autoplay=<mode>` (start a match at once), `--autofight` (your character
 attacks the nearest enemy), `--timescale=N`, `--screenshot=<png> --shot-delay=<s>`, `--menu=play|barracks|options|editor`,
-`--lan-host` / `--lan-join=<ip>` / `--name=<n>`, `--trace` (prints tick and network logs).
+`--lan-host` / `--lan-join=<ip>` / `--name=<n>`, `--trace` (prints tick and network logs), `--map=<id>` (with
+`--autoplay`), `--perf` (prints fps, draw calls and primitives every 5 s), `--placeholder-map` (old box map art).

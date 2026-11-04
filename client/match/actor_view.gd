@@ -64,6 +64,7 @@ func setup(info: Dictionary, my_team: int, me: bool, ffa: bool) -> void:
 	ring.mesh = tm
 	ring.scale = Vector3(1, 0.15, 1)
 	ring.position.y = 0.03
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ring_mat = StandardMaterial3D.new()
 	_ring_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_ring_mat.albedo_color = Color("ffd23f") if me else UITheme.team_color(team, my_team, ffa)
@@ -71,6 +72,7 @@ func setup(info: Dictionary, my_team: int, me: bool, ffa: bool) -> void:
 	add_child(ring)
 	# Name, HP bar and overhead icon.
 	_name_lbl = Label3D.new()
+	_name_lbl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_name_lbl.text = str(info["name"])
 	_name_lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_name_lbl.no_depth_test = true
@@ -83,6 +85,7 @@ func setup(info: Dictionary, my_team: int, me: bool, ffa: bool) -> void:
 	_hp_bg = _bar_sprite(Color("c01818"), 0)
 	_hp_fg = _bar_sprite(Color("18c018"), 1)
 	_overhead = Sprite3D.new()
+	_overhead.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_overhead.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_overhead.no_depth_test = true
 	_overhead.pixel_size = 0.022
@@ -91,6 +94,7 @@ func setup(info: Dictionary, my_team: int, me: bool, ffa: bool) -> void:
 	_overhead.render_priority = 5
 	add_child(_overhead)
 	_ice = MeshInstance3D.new()
+	_ice.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var bm := BoxMesh.new()
 	bm.size = Vector3(0.9, 1.1, 0.9)
 	_ice.mesh = bm
@@ -104,6 +108,7 @@ func setup(info: Dictionary, my_team: int, me: bool, ffa: bool) -> void:
 	_ice.visible = false
 	add_child(_ice)
 	_shield_bubble = MeshInstance3D.new()
+	_shield_bubble.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var sm := SphereMesh.new()
 	sm.radius = 0.9
 	sm.height = 2.4
@@ -122,6 +127,7 @@ func setup(info: Dictionary, my_team: int, me: bool, ffa: bool) -> void:
 
 func _bar_sprite(c: Color, prio: int) -> Sprite3D:
 	var s := Sprite3D.new()
+	s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	s.texture = Icons.white()
 	s.region_enabled = true
 	s.region_rect = Rect2(0, 0, HP_W, 7)
@@ -497,6 +503,7 @@ func add_splat(amount: int, kind: String) -> void:
 	_splat_slot += 1
 	root.position = Vector3(o.x, 1.2 + o.y, 0)
 	var spr := Sprite3D.new()
+	spr.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	spr.texture = Icons.splat(kind)
 	spr.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	spr.no_depth_test = true
@@ -505,6 +512,7 @@ func add_splat(amount: int, kind: String) -> void:
 	spr.render_priority = 10
 	root.add_child(spr)
 	var lbl := Label3D.new()
+	lbl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	lbl.text = str(amount)
 	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	lbl.no_depth_test = true

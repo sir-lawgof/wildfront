@@ -6,14 +6,29 @@ extends Node3D
 var map: MapGrid
 var obelisk_nodes: Array = []
 var _meteor_marks: Dictionary = {}
+var _traps: Dictionary = {}
 
 
 static func tile_to_world(p: Vector2i, h: float = 0.0) -> Vector3:
 	return Vector3(p.x + 0.5, h, p.y + 0.5)
 
 
-func build(m: MapGrid, show_grid: bool, show_objectives: bool = true) -> void:
+var env: EnvironmentBuilder          ## generated environment (null when the placeholder art is used)
+
+## Placeholder map art (the original boxes and cylinders) for comparison: --placeholder-map or the
+## profile setting "placeholder_map_art". Remove once the environment kits are approved (ENVIRONMENT.md E6).
+static func use_placeholder() -> bool:
+	return "--placeholder-map" in OS.get_cmdline_user_args() or not ResourceLoader.exists("res://data/art/env_modules.json")
+
+
+func build(m: MapGrid, show_grid: bool, show_objectives: bool = true, placeholder: bool = false) -> void:
 	map = m
+	if not placeholder and not use_placeholder():
+		env = EnvironmentBuilder.new()
+		add_child(env)
+		env.build(m, DB.maps.get(m.id, {}), show_grid, show_objectives)
+		obelisk_nodes = env.obelisk_nodes
+		return
 	var th := m.theme
 	var floor_a := Color.html(str(th.get("floor", "#777777")))
 	var floor_b := Color.html(str(th.get("floor2", "#707070")))
@@ -183,6 +198,16 @@ func _lighting(th: Dictionary) -> void:
 	add_child(sun)
 
 
+func set_viewer_team(my_team: int, ffa: bool) -> void:
+	if env != null:
+		env.set_viewer_team(my_team, ffa)
+
+
+func follow(focus: Vector3) -> void:
+	if env != null:
+		env.follow(focus)
+
+
 func update_objectives(objs: Array, my_team: int) -> void:
 	for i in range(mini(objs.size(), obelisk_nodes.size())):
 		var o: Dictionary = objs[i]
@@ -196,12 +221,13 @@ func update_objectives(objs: Array, my_team: int) -> void:
 		cm.emission = c
 		var rm: StandardMaterial3D = nd["ring"]
 		var rc := c
+		nd["capturing"] = int(o["cap_team"]) >= 0
 		if int(o["cap_team"]) >= 0:
 			rc = UITheme.team_color(int(o["cap_team"]), my_team).lerp(Color.WHITE, 0.3)
 		rm.albedo_color = Color(rc, 0.7)
 
 
-func show_meteors(meteors: Array) -> void:
+func show_meteors(meteors: Array, tick: int = 0) -> void:
 	var seen := {}
 	for m in meteors:
 		var key := "%d_%d_%d" % [int(m["x"]), int(m["y"]), int(m["land"])]
@@ -213,15 +239,42 @@ func show_meteors(meteors: Array) -> void:
 		var sz := float(m["size"])
 		pm.size = Vector2(sz, sz)
 		mi.mesh = pm
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(1, 0.2, 0.1, 0.45)
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		var mat := ShaderMaterial.new()
+		mat.shader = load("res://assets/materials/danger_decal.gdshader")
 		mi.material_override = mat
-		mi.position = Vector3(int(m["x"]) + 0.5, 0.05, int(m["y"]) + 0.5)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.position = Vector3(int(m["x"]) + 0.5, 0.03, int(m["y"]) + 0.5)
+		mi.set_meta("land", int(m["land"]))
+		mi.set_meta("start", tick)
 		add_child(mi)
 		_meteor_marks[key] = mi
 	for k in _meteor_marks.keys():
 		if not seen.has(k):
 			(_meteor_marks[k] as Node).queue_free()
 			_meteor_marks.erase(k)
+		else:
+			var mk: MeshInstance3D = _meteor_marks[k]
+			var span := maxf(1.0, float(int(mk.get_meta("land")) - int(mk.get_meta("start"))))
+			(mk.material_override as ShaderMaterial).set_shader_parameter("progress",
+				clampf(float(tick - int(mk.get_meta("start"))) / span, 0.0, 1.0))
+
+
+## Allied snare traps (the server only sends traps of the viewer's team): a small flat iron trap model.
+func show_traps(traps: Array) -> void:
+	var seen := {}
+	for t in traps:
+		var tile := Vector2i(int(t.x), int(t.y)) if t is Vector2i else Vector2i(int(t[0]), int(t[1]))
+		var key := "%d_%d" % [tile.x, tile.y]
+		seen[key] = true
+		if _traps.has(key):
+			continue
+		var mi := MeshInstance3D.new()
+		mi.mesh = EnvironmentBuilder.module_mesh("env_common_trap")
+		mi.material_override = load(EnvironmentBuilder.ENV_MAT)
+		mi.position = tile_to_world(tile, 0.0)
+		add_child(mi)
+		_traps[key] = mi
+	for k in _traps.keys():
+		if not seen.has(k):
+			(_traps[k] as Node).queue_free()
+			_traps.erase(k)

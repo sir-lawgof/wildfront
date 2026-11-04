@@ -617,10 +617,11 @@ func show_options() -> void:
 		["colorblind", "Colour-blind palette (blue / orange teams)"],
 		["short_countdown", "Short pre-match countdown (3 s instead of 15 s)"],
 		["show_tile_grid", "Show tile grid lines"],
+		["placeholder_map_art", "Placeholder map art (debug: compare with the old boxes)"],
 	]:
 		var cb := CheckBox.new()
 		cb.text = str(opt[1])
-		cb.button_pressed = bool(profile.setting(str(opt[0])))
+		cb.button_pressed = profile.setting(str(opt[0])) == true
 		cb.toggled.connect(func(v):
 			profile.set_setting(str(opt[0]), v)
 			if str(opt[0]) == "colorblind":

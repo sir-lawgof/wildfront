@@ -49,6 +49,9 @@ var _loco_state: String = "idle"
 var _loco: AnimationNodeStateMachine
 var _action: AnimationNodeAnimation
 var _flash: float = 0.0
+var _hidden: Dictionary = {}       ## body bones covered by gear
+var _merged: MeshInstance3D        ## all visible parts merged into one rigidly skinned mesh (one draw call)
+static var _part_arrays: Dictionary = {}
 
 
 # ---------------------------------------------------------------- static data
@@ -136,6 +139,7 @@ func _init() -> void:
 	_build_tree()
 	set_team_color(team_color)
 	set_weapon({})
+	merge()
 
 
 func _build_tree() -> void:
@@ -200,9 +204,8 @@ func apply_equipment(eq: Dictionary, kit_color: String = "") -> void:
 	_recolor = Color.html(kit_color) if kit_color != "" else Color(1, 1, 1, 0)
 	if kit_color != "":
 		_recolor.a = 0.85
-	for n in (_equipped.get("weapon", {}) as Dictionary).get("nodes", []):
-		(n as GeometryInstance3D).set_instance_shader_parameter("recolor", _recolor)
 	set_weapon(DB.item(str(eq.get("weapon", ""))) if str(eq.get("weapon", "")) != "" else {})
+	merge()
 
 
 func equip(slot: String, item_id: String) -> void:
@@ -267,8 +270,110 @@ func _refresh_hidden() -> void:
 	for slot in _equipped:
 		for b in (_equipped[slot] as Dictionary).get("hides", []):
 			hidden[b] = true
+	_hidden = hidden
 	for b in _body_parts:
-		(_body_parts[b] as Node3D).visible = not hidden.has(b)
+		(_body_parts[b] as Node3D).visible = not hidden.has(b) and _merged == null
+
+
+## Merge every visible part (body segments not covered by gear, plus gear) into one skinned mesh. Each vertex is
+## weighted 100% to its part's bone, so it still moves exactly like rigid segments, but a character costs one
+## draw call instead of ~25. Rebuilt whenever the equipment changes. Vertex alpha marks weapon parts (ornament
+## kit recolour only touches those).
+func merge() -> void:
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var colors := PackedColorArray()
+	var bones := PackedInt32Array()
+	var weights := PackedFloat32Array()
+	var skin := Skin.new()
+	var binds := {}
+	for bone in _attach:
+		var att: BoneAttachment3D = _attach[bone]
+		var bi := skeleton.find_bone(str(bone))
+		if bi == -1:
+			continue
+		var rest := skeleton.get_bone_global_rest(bi)
+		for child in att.get_children():
+			var mi := child as MeshInstance3D
+			if mi == null or mi == _merged or mi.is_queued_for_deletion() or mi.mesh == null:
+				continue
+			var nm := str(mi.name)
+			if nm.begins_with("body__") and _hidden.has(nm.trim_prefix("body__")):
+				continue
+			var a := _arrays_of(mi.mesh)
+			var n: int = (a[0] as PackedVector3Array).size()
+			if n == 0:
+				continue
+			if not binds.has(bi):
+				binds[bi] = skin.get_bind_count()
+				skin.add_bind(bi, rest.affine_inverse())
+			var xf := rest * mi.transform
+			verts.append_array(xf * (a[0] as PackedVector3Array))
+			normals.append_array(Transform3D(xf.basis.orthonormalized(), Vector3.ZERO) * (a[1] as PackedVector3Array))
+			uvs.append_array(a[2])
+			var c := Color(1, 1, 1, 1.0 if nm.begins_with("weapon__") else 0.0)
+			var b := int(binds[bi])
+			var start := colors.size()
+			colors.resize(start + n)
+			bones.resize((start + n) * 4)
+			weights.resize((start + n) * 4)
+			for i in n:
+				colors[start + i] = c
+				bones[(start + i) * 4] = b
+				weights[(start + i) * 4] = 1.0
+	if verts.is_empty():
+		return
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_NORMAL] = normals
+	arr[Mesh.ARRAY_TEX_UV] = uvs
+	arr[Mesh.ARRAY_COLOR] = colors
+	arr[Mesh.ARRAY_BONES] = bones
+	arr[Mesh.ARRAY_WEIGHTS] = weights
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	mesh.surface_set_material(0, load("res://assets/materials/palette.tres"))
+	if _merged == null:
+		_merged = MeshInstance3D.new()
+		_merged.name = "merged"
+		skeleton.add_child(_merged)
+		_merged.skeleton = _merged.get_path_to(skeleton)
+		_merged.custom_aabb = AABB(Vector3(-2.2, -0.5, -2.2), Vector3(4.4, 3.2, 4.4))
+	_merged.mesh = mesh
+	_merged.skin = skin
+	_merged.set_instance_shader_parameter("team_color", team_color)
+	_merged.set_instance_shader_parameter("recolor", _recolor)
+	for bone in _attach:
+		for child in (_attach[bone] as Node).get_children():
+			if child is MeshInstance3D:
+				(child as MeshInstance3D).visible = false
+
+
+static func _arrays_of(mesh: Mesh) -> Array:
+	var key := mesh.get_instance_id()
+	if not _part_arrays.has(key):
+		var v := PackedVector3Array()
+		var n := PackedVector3Array()
+		var u := PackedVector2Array()
+		for s in mesh.get_surface_count():
+			var a := mesh.surface_get_arrays(s)
+			var sv: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+			var sn: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+			var su: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+			var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX] if a[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+			if idx.is_empty():
+				v.append_array(sv)
+				n.append_array(sn)
+				u.append_array(su)
+				continue
+			for i in idx:
+				v.append(sv[i])
+				n.append(sn[i])
+				u.append(su[i])
+		_part_arrays[key] = [v, n, u]
+	return _part_arrays[key]
 
 
 func _attachment(bone: String) -> BoneAttachment3D:

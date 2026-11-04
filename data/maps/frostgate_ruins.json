@@ -4,7 +4,7 @@
   "name": "Frostgate Ruins",
   "size": [64, 64],
   "symmetry": "point",
-  "theme": {"floor": "#c9d6df", "floor2": "#bdcbd5", "wall": "#6f7b86", "pillar": "#8d99a3", "water": "#4f7da8", "sky": "#b8c8d8", "fog": "#c8d4e0"},
+  "theme": {"floor": "#c9d6df", "floor2": "#bdcbd5", "wall": "#6f7b86", "pillar": "#8d99a3", "water": "#4f7da8", "sky": "#b8c8d8", "fog": "#c8d4e0", "sky_top": "#7f9fbf", "sky_horizon": "#c8d4e0", "sky_ground": "#9aa8b4", "cloud": "#eef2f6", "cloud_cover": 0.45, "sun_color": "#fff2dc", "sun_yaw": -35, "sun_pitch": -30, "sun_energy": 0.95, "ambient_energy": 0.55, "fog_color": "#c8d4e0", "fog_density": 0.006, "weather": "snow"},
   "walls": [
     [16, 36, 2, 6], [16, 45, 2, 9],
     [46, 36, 2, 6], [46, 45, 2, 9],
@@ -24,5 +24,6 @@
   "spawns": {"a": [[26, 57], [29, 59], [32, 58], [35, 59], [38, 57], [28, 61], [36, 61], [32, 61]]},
   "ffa_spawns": [[6, 58], [57, 58], [10, 40], [53, 40], [32, 55], [20, 48], [44, 50]],
   "obelisks": [[8, 44]],
-  "unique": {"obelisks": [[31, 31]]}
+  "unique": {"obelisks": [[31, 31]]},
+  "dressing": {"kit": "frost"}
 }

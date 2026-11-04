@@ -4,7 +4,7 @@
   "name": "Castle Courtyard",
   "size": [48, 48],
   "symmetry": "point",
-  "theme": {"floor": "#5f8a45", "floor2": "#58803f", "wall": "#8c8579", "pillar": "#a39c8f", "water": "#2e5e8c", "sky": "#9fb8cf", "fog": "#9fb8cf"},
+  "theme": {"floor": "#5f8a45", "floor2": "#58803f", "wall": "#8c8579", "pillar": "#a39c8f", "water": "#2e5e8c", "sky": "#9fb8cf", "fog": "#9fb8cf", "sky_top": "#4f86c8", "sky_horizon": "#bcd6ee", "sky_ground": "#7a9a6a", "cloud": "#ffffff", "cloud_cover": 0.35, "sun_color": "#fff6e8", "sun_yaw": -30, "sun_pitch": -58, "sun_energy": 1.05, "ambient_energy": 0.7, "fog_color": "#c8dcef", "fog_density": 0.003, "weather": "leaves"},
   "walls": [
     [14, 36, 8, 1], [26, 36, 8, 1],
     [14, 36, 1, 3], [14, 41, 1, 5],
@@ -17,5 +17,6 @@
   "spawns": {"a": [[17, 40], [20, 42], [24, 42], [27, 42], [30, 40], [18, 44], [29, 44], [24, 44]]},
   "ffa_spawns": [[4, 42], [43, 42], [24, 34], [10, 35]],
   "obelisks": [],
-  "unique": {"obelisks": [[23, 20], [24, 27], [23, 34]]}
+  "unique": {"obelisks": [[23, 20], [24, 27], [23, 34]]},
+  "dressing": {"kit": "castle", "castles": true, "styles": [{"rect": [6, 20, 1, 4], "style": "hedge"}, {"rect": [21, 23, 6, 1], "style": "arch"}]}
 }

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tools/dev/map_shots.gd" id="1_shots"]
+
+[node name="MapShots" type="Node3D"]
+script = ExtResource("1_shots")

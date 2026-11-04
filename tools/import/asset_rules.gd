@@ -4,6 +4,12 @@ extends RefCounted
 ## (warnings on every import) and tools/dev/check_assets.gd (fails the build).
 
 const PALETTE_MATERIAL := "res://assets/materials/palette.tres"
+const ENV_MATERIAL := "res://assets/materials/env.tres"
+const ENV_MODULES := "res://data/art/env_modules.json"
+## Environment budgets per module role (docs/ENVIRONMENT.md section 9).
+const ENV_BUDGET := {"wall": 150, "face": 60, "rampart": 250, "pillar": 250, "block": 400, "structure": 1200,
+	"border": 150, "decor": 60, "water_decor": 120, "scatter": 500, "backdrop": 2000, "marker": 200,
+	"marker_base": 150, "objective": 300, "wall_top": 80}
 const MODELS_DIR := "res://assets/models"
 const ANIM_LIBRARY := "res://assets/animations/character.res"
 const BASE_BODY := "res://assets/models/characters/base_body.glb"
@@ -31,6 +37,10 @@ const HIDES := {
 	"gloves": ["hand_L", "hand_R"],
 	"helm_full": ["head"],
 }
+
+
+static func material_for(path: String) -> String:
+	return ENV_MATERIAL if category_of(path) == "env" else PALETTE_MATERIAL
 
 
 static func split_name(node_name: String) -> PackedStringArray:
@@ -83,8 +93,8 @@ static func check_scene(scene: Node, path: String, stats: Dictionary = {}) -> Ar
 		if mi.mesh != null:
 			for s in mi.mesh.get_surface_count():
 				var m := mi.mesh.surface_get_material(s)
-				if m == null or m.resource_path != PALETTE_MATERIAL:
-					problems.append("%s: mesh '%s' doesn't use the palette material" % [path.get_file(), mi.name])
+				if m == null or m.resource_path != material_for(path):
+					problems.append("%s: mesh '%s' doesn't use the %s material" % [path.get_file(), mi.name, material_for(path).get_file()])
 					break
 	stats["tris"] = total
 	stats["per_slot"] = per_slot

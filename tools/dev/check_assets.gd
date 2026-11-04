@@ -38,6 +38,7 @@ func _init() -> void:
 	if not skip_cov:
 		_check_coverage()
 	_check_anims()
+	_check_env()
 	for w in warnings:
 		print("WARN " + w)
 	for p in problems:
@@ -137,3 +138,21 @@ func _check_anims() -> void:
 		if not lib.has_animation(c):
 			problems.append("animation clip '%s' is missing from %s" % [c, AssetRules.ANIM_LIBRARY])
 	print("CHECK animations: %d clips required, library has %d" % [need.size(), lib.get_animation_list().size()])
+
+
+## Environment modules: budget per role and no open (missing) faces above the ground.
+func _check_env() -> void:
+	var f := FileAccess.open(AssetRules.ENV_MODULES, FileAccess.READ)
+	if f == null:
+		return
+	var mods: Dictionary = (JSON.parse_string(f.get_as_text()) as Dictionary).get("modules", {})
+	for id in mods:
+		var m: Dictionary = mods[id]
+		var cap := int(AssetRules.ENV_BUDGET.get(str(m.get("role", "")), 150))
+		if int(m.get("tris", 0)) > cap:
+			problems.append("%s (%s) has %d tris (max %d)" % [id, m.get("role", ""), m.get("tris", 0), cap])
+		if int(m.get("open_edges", 0)) > 0:
+			problems.append("%s has %d open edges (missing faces)" % [id, m.get("open_edges", 0)])
+		if not ResourceLoader.exists("res://assets/models/env/%s.glb" % id):
+			problems.append("%s is listed in env_modules.json but its model is missing" % id)
+	print("CHECK environment: %d modules" % mods.size())

@@ -166,6 +166,7 @@ class MeshBuilder:
         bm = bmesh.new()
         bverts = [bm.verts.new(v - o) for v in self.verts]
         uv_layer = bm.loops.layers.uv.new("UVMap")
+        ao_layer = bm.loops.layers.float_color.new("Color") if palette.ACTIVE == "env" else None
         for idx, sw in self.faces:
             try:
                 f = bm.faces.new([bverts[i] for i in idx])
@@ -174,6 +175,11 @@ class MeshBuilder:
             u = palette.uv(sw)
             for loop in f.loops:
                 loop[uv_layer].uv = u
+                if ao_layer is not None:
+                    # Baked ambient occlusion: darker near the ground, plus whatever the generator asked for.
+                    z = loop.vert.co.z + o.z
+                    k = 0.62 + 0.38 * min(1.0, max(0.0, z / 0.9))
+                    loop[ao_layer] = (k, k, k, 1.0)
             f.smooth = False
         bm.to_mesh(me)
         bm.free()
@@ -186,18 +192,19 @@ class MeshBuilder:
 
 
 def palette_material():
-    """A Blender-side material showing palette.png (for viewing .blend files; export skips materials, and
-    Godot's import script applies the shared palette material)."""
-    m = bpy.data.materials.get("palette")
+    """A Blender-side material showing the active palette PNG (for viewing .blend files; export skips materials,
+    and Godot's import script applies the shared palette or environment material)."""
+    name = "palette" if palette.ACTIVE == "main" else "palette_env"
+    m = bpy.data.materials.get(name)
     if m is not None:
         return m
-    m = bpy.data.materials.new("palette")
+    m = bpy.data.materials.new(name)
     m.use_nodes = True
     nt = m.node_tree
     bsdf = next((n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
     tex = nt.nodes.new("ShaderNodeTexImage")
     import os
-    path = os.path.join(palette.ROOT, "assets", "palette", "palette.png")
+    path = os.path.join(palette.ROOT, "assets", "palette", name + ".png")
     try:
         tex.image = bpy.data.images.load(path, check_existing=True)
     except RuntimeError:

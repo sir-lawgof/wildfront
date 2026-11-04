@@ -30,6 +30,8 @@ var _projectiles: Array = []
 ## Presentation timing (ASSETS.md 9): seconds until an attacker's clip reaches its impact/release frame.
 var _melee_delay: Dictionary = {}   ## target id -> delay for this tick's melee hitsplats
 var _launch_delay: Dictionary = {}  ## attacker id -> delay before its projectile leaves
+var _perf_log: bool = "--perf" in OS.get_cmdline_user_args()
+var _perf_t: float = 0.0
 var _over_timer: float = -1.0
 var _prev_prayers: Array = []
 var _popup: PopupMenu
@@ -44,7 +46,8 @@ func start(cfg: Dictionary, p: Profile, s: Sfx, link: Node = null) -> void:
 	map = MapGrid.from_json(DB.maps[str(cfg["map"])])
 	world = WorldView.new()
 	add_child(world)
-	world.build(map, bool(profile.setting("show_tile_grid")), str(DB.modes["modes"][str(cfg["mode"])].get("type", "")) == "domination")
+	world.build(map, bool(profile.setting("show_tile_grid")), str(DB.modes["modes"][str(cfg["mode"])].get("type", "")) == "domination",
+		profile.setting("placeholder_map_art") == true)
 	camera = Camera3D.new()
 	camera.fov = 42.0
 	camera.far = 300.0
@@ -75,6 +78,7 @@ func _on_tick(s: Dictionary) -> void:
 		my_id = int(me.get("id", -1))
 		my_team = int(me.get("team", 0))
 		ffa = str(s.get("mode_type", "")) == "ffa"
+		world.set_viewer_team(my_team, ffa)
 		hud = Hud.new()
 		add_child(hud)
 		hud.setup(profile, sfx, s, map)
@@ -107,7 +111,8 @@ func _on_tick(s: Dictionary) -> void:
 		sfx.play("countdown", 0.5)
 	hud.update(s)
 	world.update_objectives(s.get("objectives", []), my_team)
-	world.show_meteors(s.get("meteors", []))
+	world.show_meteors(s.get("meteors", []), int(s.get("tick", 0)))
+	world.show_traps(s.get("traps", []))
 	if str(s.get("phase", "")) == "over" and _over_timer < 0.0:
 		_over_timer = 3.5
 		var w := int(s.get("result", {}).get("winner", -1))
@@ -304,6 +309,25 @@ func _process(delta: float) -> void:
 		else:
 			nd.position = pos
 	_update_camera(delta)
+	world.follow(_cam_focus)
+	# Occlusion cut-out (env.gdshader): walls between the camera and the local player dither away.
+	var me_view: ActorView = actors.get(my_id)
+	var pp := me_view.position if me_view != null and me_view.visible else Vector3(0, -1000, 0)
+	RenderingServer.global_shader_parameter_set("player_pos", pp)
+	if _perf_log:
+		_perf_t += delta
+		if _perf_t >= 5.0:
+			_perf_t = 0.0
+			print("PERF fps=%d process_ms=%.1f draw_calls=%d primitives=%d objects=%d" % [Engine.get_frames_per_second(),
+				Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+				Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+				Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+				Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)])
+			var vp := get_viewport()
+			print("PERF split: 3d=%d shadow=%d canvas_2d=%d" % [
+				vp.get_render_info(Viewport.RENDER_INFO_TYPE_VISIBLE, Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME),
+				vp.get_render_info(Viewport.RENDER_INFO_TYPE_SHADOW, Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME),
+				vp.get_render_info(Viewport.RENDER_INFO_TYPE_CANVAS, Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME)])
 	_update_hover()
 	if _over_timer > 0.0:
 		_over_timer -= delta

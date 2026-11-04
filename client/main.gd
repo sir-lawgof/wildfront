@@ -69,7 +69,11 @@ func _ready() -> void:
 		if a.begins_with("--autoplay="):
 			var mode := a.substr(11)
 			var maps: Array = DB.modes["modes"][mode]["maps"]
-			_start_match({"mode": mode, "map": maps[0], "playlist": "standard", "pre_ticks": 3, "bot_skill": 0.55})
+			var map_id: String = maps[0]
+			for b in OS.get_cmdline_user_args():
+				if str(b).begins_with("--map=") and DB.maps.has(str(b).substr(6)):
+					map_id = str(b).substr(6)
+			_start_match({"mode": mode, "map": map_id, "playlist": "standard", "pre_ticks": 3, "bot_skill": 0.55})
 
 
 func player_info() -> Dictionary:

@@ -4,7 +4,7 @@
   "name": "Ember Outpost",
   "size": [56, 56],
   "symmetry": "point",
-  "theme": {"floor": "#d8b67a", "floor2": "#cfab6e", "wall": "#9c6f3c", "pillar": "#b5885a", "water": "#3a7ca5", "sky": "#e3c79a", "fog": "#e8d0a8"},
+  "theme": {"floor": "#d8b67a", "floor2": "#cfab6e", "wall": "#9c6f3c", "pillar": "#b5885a", "water": "#3a7ca5", "sky": "#e3c79a", "fog": "#e8d0a8", "sky_top": "#6a9cd0", "sky_horizon": "#f0cc98", "sky_ground": "#b89870", "cloud": "#ffeccc", "cloud_cover": 0.2, "sun_color": "#ffcc90", "sun_yaw": 60, "sun_pitch": -36, "sun_energy": 1.25, "ambient_energy": 0.8, "fog_color": "#e2c49a", "fog_density": 0.007, "weather": "sand"},
   "walls": [
     [4, 31, 6, 1], [14, 31, 4, 1], [22, 31, 3, 1], [31, 31, 3, 1], [38, 31, 4, 1], [46, 31, 6, 1],
     [6, 34, 2, 2], [11, 36, 2, 2], [16, 34, 2, 2], [20, 38, 2, 2], [25, 35, 2, 2], [29, 39, 2, 2],
@@ -17,5 +17,6 @@
   "spawns": {"a": [[22, 50], [26, 52], [30, 50], [34, 52], [24, 48], [32, 48], [20, 52], [36, 52]]},
   "ffa_spawns": [[4, 50], [51, 50], [20, 44], [35, 44], [4, 37], [51, 38]],
   "obelisks": [[7, 45]],
-  "unique": {"obelisks": [[27, 27]]}
+  "unique": {"obelisks": [[27, 27]]},
+  "dressing": {"kit": "ember"}
 }

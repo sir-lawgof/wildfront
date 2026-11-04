@@ -29,7 +29,7 @@ func _defaults() -> void:
 		"selected_class": "warrior",
 		"settings": {
 			"tick_sound": false, "switch_hotkeys": true, "minimap_size": 200, "colorblind": false,
-			"short_countdown": false, "volume": 0.7, "bot_skill": 0.55, "show_tile_grid": true,
+			"short_countdown": false, "volume": 0.7, "bot_skill": 0.55, "show_tile_grid": true, "placeholder_map_art": false,
 		},
 		"stats": {"matches": 0, "wins": 0, "kills": 0, "deaths": 0, "assists": 0, "damage": 0},
 		"challenges": {},

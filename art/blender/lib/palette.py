@@ -4,15 +4,22 @@ import json
 import os
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-_META = None
+_METAS = {}
+ACTIVE = "main"   # "main" = characters/gear (palette.png), "env" = environment (palette_env.png)
+_FILES = {"main": "palette.json", "env": "palette_env.json"}
+
+
+def use(which):
+    """Select the palette that swatch names refer to (build_all sets 'env' for the env category)."""
+    global ACTIVE
+    ACTIVE = which
 
 
 def meta():
-    global _META
-    if _META is None:
-        with open(os.path.join(ROOT, "art", "palette", "palette.json"), encoding="utf-8") as f:
-            _META = json.load(f)
-    return _META
+    if ACTIVE not in _METAS:
+        with open(os.path.join(ROOT, "art", "palette", _FILES[ACTIVE]), encoding="utf-8") as f:
+            _METAS[ACTIVE] = json.load(f)
+    return _METAS[ACTIVE]
 
 
 def has(name):
@@ -22,7 +29,8 @@ def has(name):
 def cell(name):
     sw = meta()["swatches"]
     if name not in sw:
-        raise KeyError("unknown palette swatch '%s' (add it in art/palette/make_palette.py)" % name)
+        raise KeyError("unknown %s palette swatch '%s' (add it in art/palette/make_%spalette.py)"
+                       % (ACTIVE, name, "env_" if ACTIVE == "env" else ""))
     return sw[name]
 
 

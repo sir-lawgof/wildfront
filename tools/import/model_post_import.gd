@@ -1,7 +1,7 @@
 @tool
 extends EditorScenePostImport
 ## Runs on every .glb import (set as the project's scene import default; ASSETS.md section 5):
-##  - replaces every material with the shared palette material,
+##  - replaces every material with the shared palette material (env.tres for assets/models/env/),
 ##  - loops clips whose names end in -loop / _loop (Godot strips the suffix: "idle-loop" -> "idle"),
 ##  - saves the base body's clips as the shared AnimationLibrary,
 ##  - prints a warning for naming or triangle-budget problems (tools/dev/check_assets.gd fails on them).
@@ -11,7 +11,7 @@ const LOOP_CLIPS := ["idle", "walk", "run"]
 
 func _post_import(scene: Node) -> Object:
 	var path := get_source_file()
-	var mat: Material = load(AssetRules.PALETTE_MATERIAL)
+	var mat: Material = load(AssetRules.material_for(path))
 	for n in scene.find_children("*", "MeshInstance3D", true, false):
 		var mi := n as MeshInstance3D
 		if mi.mesh == null:
