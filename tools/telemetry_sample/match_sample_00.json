@@ -1,0 +1,59 @@
+{
+	"bracket": "standard",
+	"feedback": {
+		"rating": 3,
+		"text": "Sample comment 1."
+	},
+	"fighters": [
+		{
+			"bot": true,
+			"cl": 1,
+			"class": "Warrior",
+			"damage": 752,
+			"deaths": 3,
+			"kills": 2,
+			"left": false,
+			"reaction_avg": 1.46979865771812,
+			"style": "melee",
+			"team": 0,
+			"ttk_avg": 165.0,
+			"ward_accuracy": 0.263157894736842
+		},
+		{
+			"bot": true,
+			"cl": 2,
+			"class": "Battlemage",
+			"damage": 790,
+			"deaths": 2,
+			"kills": 3,
+			"left": false,
+			"reaction_avg": 9.70769230769231,
+			"style": "magic",
+			"team": 1,
+			"ttk_avg": 184.666666666667,
+			"ward_accuracy": 0.829268292682927
+		}
+	],
+	"human_ward_accuracy": -1.0,
+	"leavers": 0,
+	"map": "castle_courtyard",
+	"minutes": 9.58,
+	"mode": "duel",
+	"mode_type": "elimination",
+	"schema": 1,
+	"scores": [
+		2,
+		3
+	],
+	"ticks": 958,
+	"ttk_ticks": [
+		205,
+		149,
+		181,
+		203,
+		146
+	],
+	"version": "0.6.0",
+	"ward_accuracy": 0.556962025316456,
+	"winner": 1
+}

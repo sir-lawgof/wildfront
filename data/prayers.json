@@ -1,0 +1,37 @@
+{
+  "_doc": "Prayers (GDD 7). groups: activating a prayer switches off any active prayer sharing a group. drain: OSRS-style drain effect; resistance = 60 + 2 * prayer bonus. Multipliers apply to the base level before the +8 / stance.",
+  "protect_reduction": 0.30,
+  "prayers": [
+    {"id": "ward_blades",  "name": "Ward of Blades",  "track": "combat", "level": 1,  "groups": ["overhead"], "drain": 12, "protect": "melee"},
+    {"id": "ward_arrows",  "name": "Ward of Arrows",  "track": "combat", "level": 1,  "groups": ["overhead"], "drain": 12, "protect": "ranged"},
+    {"id": "ward_spells",  "name": "Ward of Spells",  "track": "combat", "level": 1,  "groups": ["overhead"], "drain": 12, "protect": "magic"},
+    {"id": "stone_skin_1", "name": "Stone Skin I",    "track": "combat", "level": 2,  "groups": ["defence"], "drain": 1,  "mult": {"defence": 1.05}},
+    {"id": "stone_skin_2", "name": "Stone Skin II",   "track": "combat", "level": 7,  "groups": ["defence"], "drain": 6,  "mult": {"defence": 1.10}},
+    {"id": "stone_skin_3", "name": "Stone Skin III",  "track": "combat", "level": 12, "groups": ["defence"], "drain": 12, "mult": {"defence": 1.15}},
+    {"id": "mending",      "name": "Mending",         "track": "combat", "level": 5,  "groups": ["mending"], "drain": 2,  "special": "mending"},
+    {"id": "endurance",    "name": "Endurance",       "track": "combat", "level": 10, "groups": ["endurance"], "drain": 2, "special": "endurance"},
+    {"id": "sap",          "name": "Sap",             "track": "combat", "level": 14, "groups": ["overhead"], "drain": 18, "special": "sap"},
+    {"id": "last_rites",   "name": "Last Rites",      "track": "combat", "level": 21, "groups": ["overhead"], "drain": 6,  "special": "last_rites"},
+    {"id": "reckoning",    "name": "Reckoning",       "track": "combat", "level": 25, "groups": ["overhead"], "drain": 3,  "special": "reckoning"},
+    {"id": "devotion",     "name": "Devotion",        "track": "combat", "level": 36, "groups": ["devotion"], "drain": 1,  "special": "devotion"},
+
+    {"id": "keen_focus_1", "name": "Keen Focus I",    "track": "melee", "level": 1,  "groups": ["attack", "ranged", "magic"], "drain": 1,  "mult": {"attack": 1.05}},
+    {"id": "keen_focus_2", "name": "Keen Focus II",   "track": "melee", "level": 7,  "groups": ["attack", "ranged", "magic"], "drain": 6,  "mult": {"attack": 1.10}},
+    {"id": "keen_focus_3", "name": "Keen Focus III",  "track": "melee", "level": 13, "groups": ["attack", "ranged", "magic"], "drain": 12, "mult": {"attack": 1.15}},
+    {"id": "brute_force_1","name": "Brute Force I",   "track": "melee", "level": 2,  "groups": ["strength", "ranged", "magic"], "drain": 1,  "mult": {"strength": 1.05}},
+    {"id": "brute_force_2","name": "Brute Force II",  "track": "melee", "level": 8,  "groups": ["strength", "ranged", "magic"], "drain": 6,  "mult": {"strength": 1.10}},
+    {"id": "brute_force_3","name": "Brute Force III", "track": "melee", "level": 14, "groups": ["strength", "ranged", "magic"], "drain": 12, "mult": {"strength": 1.15}},
+    {"id": "gallantry",    "name": "Gallantry",       "track": "melee", "level": 23, "groups": ["attack", "strength", "defence", "ranged", "magic"], "drain": 24, "mult": {"attack": 1.15, "strength": 1.18, "defence": 1.20}},
+    {"id": "valor",        "name": "Valor",           "track": "melee", "level": 31, "groups": ["attack", "strength", "defence", "ranged", "magic"], "drain": 24, "mult": {"attack": 1.20, "strength": 1.23, "defence": 1.25}},
+
+    {"id": "sharp_sight_1","name": "Sharp Sight I",   "track": "ranged", "level": 1,  "groups": ["ranged", "attack", "strength", "magic"], "drain": 1,  "mult": {"ranged_att": 1.05, "ranged_str": 1.05}},
+    {"id": "sharp_sight_2","name": "Sharp Sight II",  "track": "ranged", "level": 7,  "groups": ["ranged", "attack", "strength", "magic"], "drain": 6,  "mult": {"ranged_att": 1.10, "ranged_str": 1.10}},
+    {"id": "sharp_sight_3","name": "Sharp Sight III", "track": "ranged", "level": 13, "groups": ["ranged", "attack", "strength", "magic"], "drain": 12, "mult": {"ranged_att": 1.15, "ranged_str": 1.15}},
+    {"id": "precision",    "name": "Precision",       "track": "ranged", "level": 31, "groups": ["ranged", "attack", "strength", "magic", "defence"], "drain": 24, "mult": {"ranged_att": 1.20, "ranged_str": 1.23, "defence": 1.25}},
+
+    {"id": "arcane_will_1","name": "Arcane Will I",   "track": "magic", "level": 1,  "groups": ["magic", "attack", "strength", "ranged"], "drain": 1,  "mult": {"magic": 1.05}},
+    {"id": "arcane_will_2","name": "Arcane Will II",  "track": "magic", "level": 7,  "groups": ["magic", "attack", "strength", "ranged"], "drain": 6,  "mult": {"magic": 1.10}},
+    {"id": "arcane_will_3","name": "Arcane Will III", "track": "magic", "level": 13, "groups": ["magic", "attack", "strength", "ranged"], "drain": 12, "mult": {"magic": 1.15}},
+    {"id": "insight",      "name": "Insight",         "track": "magic", "level": 31, "groups": ["magic", "attack", "strength", "ranged", "defence"], "drain": 24, "mult": {"magic": 1.25, "defence": 1.25}}
+  ]
+}

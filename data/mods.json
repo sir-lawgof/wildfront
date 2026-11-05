@@ -1,0 +1,31 @@
+{
+  "_doc": "Weapon mods (GDD 9): sidegrades for a class's primary weapon. Unlocked per weapon type by the Marksman weapon challenges.",
+  "categories": {
+    "melee": ["dagger", "scimitar", "longsword", "battleaxe", "warhammer", "whip", "stone_maul", "greatblade", "claws", "void_blade"],
+    "bow": ["shortbow", "longbow", "throwing_knives", "javelins", "duskbow"],
+    "crossbow": ["crossbow", "heavy_ballista", "sunfire_crossbow"],
+    "magic": ["staff", "wand", "forbidden_staff", "eruption_staff", "tempest_staff"]
+  },
+  "mods": {
+    "melee": [
+      {"id": "honed_edge", "name": "Honed Edge", "desc": "+accuracy, -strength", "bonuses": {"att_melee": 8, "str_melee": -4}},
+      {"id": "weighted_pommel", "name": "Weighted Pommel", "desc": "+strength, -accuracy", "bonuses": {"str_melee": 6, "att_melee": -6}},
+      {"id": "wrapped_hilt", "name": "Wrapped Hilt", "desc": "Specials cost 5% less energy, -strength", "bonuses": {"str_melee": -3}}
+    ],
+    "bow": [
+      {"id": "waxed_string", "name": "Waxed String", "desc": "+accuracy, -ranged strength", "bonuses": {"att_ranged": 8, "str_ranged": -3}},
+      {"id": "heavy_draw", "name": "Heavy Draw", "desc": "+ranged strength, -accuracy", "bonuses": {"str_ranged": 5, "att_ranged": -6}},
+      {"id": "quiver_strap", "name": "Quiver Strap", "desc": "+1 tile range, -accuracy", "bonuses": {"att_ranged": -4}, "range": 1}
+    ],
+    "crossbow": [
+      {"id": "light_stock", "name": "Light Stock", "desc": "+1 tile range, -ranged strength", "bonuses": {"str_ranged": -3}, "range": 1},
+      {"id": "heavy_limbs", "name": "Heavy Limbs", "desc": "+ranged strength, -accuracy", "bonuses": {"str_ranged": 5, "att_ranged": -6}},
+      {"id": "bolt_rack", "name": "Bolt Rack", "desc": "Enchanted bolts trigger 2% more often, -accuracy", "bonuses": {"att_ranged": -4}}
+    ],
+    "magic": [
+      {"id": "focus_orb", "name": "Focus Orb", "desc": "+magic accuracy, -defence", "bonuses": {"att_magic": 8, "def_melee": -6, "def_ranged": -6}},
+      {"id": "ember_codex", "name": "Ember Codex", "desc": "+10% Ember spell damage, freeze spells use 2 runes", "bonuses": {}, "ember_bonus": 10},
+      {"id": "spell_lens", "name": "Spell Lens", "desc": "+1 tile range, -magic accuracy", "bonuses": {"att_magic": -6}, "range": 1}
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "_doc": "Challenges (GDD 9). Each counts 'event' entries emitted by the sim (shared/sim.gd challenge_events) that match 'filter'. 'sum' adds a field instead of counting. cat: shared (XP split across styles) or a style. human_only: true = kills on bots don't count (U5). Rewards: 'title:X', 'banner:X'.",
+  "challenges": [
+    {"id": "first_blood",     "name": "First Blood",     "cat": "shared", "desc": "Get the first kill of a match.",                      "event": "first_blood",   "target": 1,    "xp": 250},
+    {"id": "flick_master",    "name": "Flick Master",    "cat": "shared", "desc": "Block 500 hits with the correct Ward prayer.",        "event": "blocked",       "target": 500,  "xp": 2500, "reward": "banner:Flick Master"},
+    {"id": "brew_down",       "name": "Brew Down",       "cat": "shared", "desc": "Get a kill while below 10 HP.",                       "event": "kill", "filter": {"hp_below": 10}, "target": 1, "xp": 1000},
+    {"id": "pile_breaker",    "name": "Pile Breaker",    "cat": "shared", "desc": "Kill an enemy who has Rebuke active.",                "event": "kill", "filter": {"victim_rebuke": true}, "target": 1, "xp": 1500},
+    {"id": "sap_king",        "name": "Sap King",        "cat": "shared", "desc": "Drain 1,000 enemy prayer points with Sap.",           "event": "sap", "sum": "amount", "target": 1000, "xp": 2500, "reward": "title:Sap King"},
+    {"id": "untouchable",     "name": "Untouchable",     "cat": "shared", "desc": "Win a match without dying (minimum 10 kills).",       "event": "match", "filter": {"won": true, "deaths": 0, "min_kills": 10}, "target": 1, "xp": 5000, "reward": "banner:Untouchable"},
+    {"id": "obelisk_keeper",  "name": "Obelisk Keeper",  "cat": "shared", "desc": "Capture 100 obelisks.",                               "event": "capture",       "target": 100,  "xp": 2500, "reward": "banner:Obelisk Keeper"},
+    {"id": "guardian_slayer", "name": "Guardian Slayer", "cat": "shared", "desc": "Kill 10 Summoned Guardians.",                         "event": "guardian_kill", "target": 10,   "xp": 1500},
+    {"id": "hat_trick",       "name": "Hat Trick",       "cat": "shared", "desc": "Earn all three kill streak rewards in one life.",     "event": "streak_earned", "filter": {"reward": "guardian"}, "target": 1, "xp": 3000, "reward": "banner:Hat Trick"},
+    {"id": "tribrid",         "name": "Tribrid",         "cat": "shared", "desc": "Kill with melee, ranged and magic in a single life.", "event": "tribrid",       "target": 1,    "xp": 1000},
+
+    {"id": "brawler",         "name": "Brawler",         "cat": "melee",  "desc": "500 melee kills.",                                    "event": "kill", "filter": {"style": "melee"}, "target": 500, "xp": 5000, "reward": "title:Brawler"},
+    {"id": "rampage",         "name": "Rampage",         "cat": "melee",  "desc": "3 melee kills within 10 seconds.",                    "event": "rampage",       "target": 1,    "xp": 2500, "reward": "banner:Rampage"},
+    {"id": "armour_breaker",  "name": "Armour Breaker",  "cat": "melee",  "desc": "Land 50 Defence-lowering warhammer specials.",        "event": "hammer_spec",   "target": 50,   "xp": 2000},
+    {"id": "close_quarters",  "name": "Close Quarters",  "cat": "melee",  "desc": "Kill 25 enemies who were frozen next to you.",        "event": "kill", "filter": {"style": "melee", "victim_frozen": true, "max_dist": 1}, "target": 25, "xp": 1500},
+    {"id": "double_maul",     "name": "Double Maul",     "cat": "melee",  "desc": "Land two Stone Maul specials in the same tick 25 times.", "event": "double_maul", "target": 25,   "xp": 2000},
+    {"id": "bloodied",        "name": "Bloodied",        "cat": "melee",  "desc": "Get a melee kill after taking 150+ damage that life.", "event": "kill", "filter": {"style": "melee", "min_damage_taken": 150}, "target": 1, "xp": 1000},
+
+    {"id": "marksman",        "name": "Marksman",        "cat": "ranged", "desc": "500 ranged kills.",                                   "event": "kill", "filter": {"style": "ranged"}, "target": 500, "xp": 5000, "reward": "title:Marksman"},
+    {"id": "long_shot",       "name": "Long Shot",       "cat": "ranged", "desc": "50 kills from 9 or more tiles away.",                 "event": "kill", "filter": {"style": "ranged", "min_dist": 9}, "target": 50, "xp": 2500, "reward": "banner:Long Shot"},
+    {"id": "kiter",           "name": "Kiter",           "cat": "ranged", "desc": "25 ranged kills without taking damage that life.",    "event": "kill", "filter": {"style": "ranged", "max_damage_taken": 0}, "target": 25, "xp": 2500},
+    {"id": "bolt_storm",      "name": "Bolt Storm",      "cat": "ranged", "desc": "Trigger 100 enchanted bolt effects.",                 "event": "bolt_proc",     "target": 100,  "xp": 1500},
+    {"id": "pinned_down",     "name": "Pinned Down",     "cat": "ranged", "desc": "Kill 25 frozen enemies with ranged.",                 "event": "kill", "filter": {"style": "ranged", "victim_frozen": true}, "target": 25, "xp": 1500},
+
+    {"id": "archmage",        "name": "Archmage",        "cat": "magic",  "desc": "500 magic kills.",                                    "event": "kill", "filter": {"style": "magic"}, "target": 500, "xp": 5000, "reward": "title:Archmage"},
+    {"id": "ice_cold",        "name": "Ice Cold",        "cat": "magic",  "desc": "Freeze 250 enemies.",                                 "event": "freeze",        "target": 250,  "xp": 2500, "reward": "banner:Ice Cold"},
+    {"id": "crowd_control",   "name": "Crowd Control",   "cat": "magic",  "desc": "Freeze 3 enemies with one storm spell, 10 times.",    "event": "multi_freeze",  "target": 10,   "xp": 2500},
+    {"id": "lifeleech",       "name": "Lifeleech",       "cat": "magic",  "desc": "Heal 2,000 HP with Leech spells.",                    "event": "leech", "sum": "amount", "target": 2000, "xp": 2000},
+    {"id": "miasma",          "name": "Miasma",          "cat": "magic",  "desc": "Poison 100 enemies.",                                 "event": "poison",        "target": 100,  "xp": 1000},
+    {"id": "frozen_solid",    "name": "Frozen Solid",    "cat": "magic",  "desc": "Kill 25 enemies while they are frozen.",              "event": "kill", "filter": {"style": "magic", "victim_frozen": true}, "target": 25, "xp": 1500}
+  ],
+  "weapon_ladder": [
+    {"id": "marksman_1", "name": "Marksman I",   "kind": "kills",      "target": 25,  "xp": 500,  "reward": "mod:1"},
+    {"id": "marksman_2", "name": "Marksman II",  "kind": "kills",      "target": 75,  "xp": 1000, "reward": "mod:2"},
+    {"id": "marksman_3", "name": "Marksman III", "kind": "kills",      "target": 150, "xp": 2000, "reward": "mod:3"},
+    {"id": "expert_1",   "name": "Expert I",     "kind": "spec_kills", "target": 25,  "xp": 1000, "reward": "kit:bronze_trim"},
+    {"id": "expert_2",   "name": "Expert II",    "kind": "fast_kills", "target": 10,  "xp": 2500, "reward": "kit:gilded"},
+    {"id": "expert_3",   "name": "Expert III",   "kind": "life_kills", "target": 5,   "xp": 5000, "reward": "kit:shadow"}
+  ],
+  "kits": {"bronze_trim": "#cd7f32", "gilded": "#ffd700", "shadow": "#26222e"}
+}

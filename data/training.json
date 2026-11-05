@@ -1,0 +1,87 @@
+{
+  "_doc": "Proving Grounds (U1, docs/COMMUNITY_UPDATES.md). Drills teach one mechanic each against scripted bots (server/bot_brain.gd config); exams are duels against the instructor. Bot config keys: mode (fight, cycle, flee, freezer, telegraph, passive), reaction_ticks, prayer_accuracy (0-1), pray (bool), eat_hp, eat_delay (ticks it waits after eating before attacking), fake_switch_chance (0-1), spec_hp (target HP at or below which it specs), spec_chance (0-1), attack_range (tiles, 0 = weapon range), damage_mult, cycle_every (attacks per style in 'cycle'), telegraph_ticks, walk (bool). Kits: 'bracket' + kit key (melee/ranged/magic/hybrid), or 'player' for the player's selected class mapped into the bracket. xp is split evenly across the three styles and granted on the first pass only.",
+  "map": "castle_courtyard",
+  "instructor": {
+    "name": "Drillmaster Varn",
+    "desc": "A scarred veteran of the frontier wars who now trains recruits at the Proving Grounds."
+  },
+  "drills": [
+    {
+      "id": "wards", "name": "Wards", "mechanic": "Protection prayers",
+      "desc": "The sparring partner changes style every few attacks. Switch your ward (keys 1/2/3) to match each attack before it lands.",
+      "player_kit": {"bracket": "warlord", "kit": "melee"},
+      "bot": {"name": "Sparring Partner", "kit": {"bracket": "warlord", "kit": "hybrid"},
+        "config": {"mode": "cycle", "cycle_every": 3, "pray": false, "damage_mult": 0.5}},
+      "goal": {"type": "wards", "attacks": 12, "need": 9},
+      "time_limit_s": 120, "xp": 300
+    },
+    {
+      "id": "freezes", "name": "Freezes", "mechanic": "Freezing and escaping freezes",
+      "desc": "First, freeze the runner with a freeze spell. Then the freezer comes for you: get more than 10 tiles away without being frozen.",
+      "player_kit": {"bracket": "warlord", "kit": "magic"},
+      "bot": {"name": "Runner", "kit": {"bracket": "warlord", "kit": "magic"}, "config": {"mode": "flee", "pray": false}},
+      "stage2_bot_config": {"mode": "freezer", "walk": true, "pray": false, "damage_mult": 0.0},
+      "goal": {"type": "freezes", "escape_distance": 11, "escape_start_distance": 4},
+      "time_limit_s": 150, "xp": 300
+    },
+    {
+      "id": "specials", "name": "Special attacks", "mechanic": "Special attacks",
+      "desc": "Wear the target down, then press E to arm your special attack and land it once the target is at or below 50% HP. Then land a special attack on a frozen target. Your special energy refills in this drill.",
+      "player_kit": {"bracket": "warlord", "kit": "melee"},
+      "bot": {"name": "Training Target", "kit": {"bracket": "warlord", "kit": "melee"}, "config": {"mode": "passive", "pray": false}},
+      "goal": {"type": "specials", "hp_fraction": 0.5, "freeze_every_ticks": 20, "freeze_ticks": 16},
+      "time_limit_s": 150, "xp": 300
+    },
+    {
+      "id": "switching", "name": "Gear switching", "mechanic": "Hybrid gear switches",
+      "desc": "Switch your weapon, body and legs to another style in a single tick, three times. Click fast or use Z / X / C.",
+      "player_kit": {"bracket": "warlord", "kit": "hybrid"},
+      "bot": {"name": "Training Target", "kit": {"bracket": "warlord", "kit": "melee"}, "config": {"mode": "passive", "pray": false}},
+      "goal": {"type": "switching", "count": 3},
+      "time_limit_s": 90, "xp": 300
+    },
+    {
+      "id": "combo_eating", "name": "Combo eating", "mechanic": "Combo eating",
+      "desc": "Three bursts are coming, each nearly lethal. Survive all three. After a burst, eat main food, combo food and a brew in the same tick.",
+      "player_kit": {"bracket": "warlord", "kit": "melee"},
+      "player_inventory": [["pike", 10], ["kelp_roll", 4], ["sanctum_brew", 2]],
+      "bot": {"name": "Bruiser", "kit": {"bracket": "warlord", "kit": "melee"}, "config": {"mode": "passive", "pray": false}},
+      "goal": {"type": "combo_eating", "bursts": 3, "burst": [40, 40], "first_burst_tick": 5, "interval_ticks": 7, "need_combo": true},
+      "time_limit_s": 60, "xp": 300
+    },
+    {
+      "id": "reading", "name": "Reading the enemy", "mechanic": "Reading weapon switches",
+      "desc": "The duelist swaps weapons, then attacks a moment later. Call the style before the attack lands: 8 melee, 9 ranged, 0 magic.",
+      "player_kit": {"bracket": "warlord", "kit": "melee"},
+      "bot": {"name": "Duelist", "kit": {"bracket": "warlord", "kit": "hybrid"},
+        "config": {"mode": "telegraph", "telegraph_ticks": 3, "pray": false, "damage_mult": 0.3}},
+      "goal": {"type": "reading", "attacks": 8, "need": 6},
+      "time_limit_s": 120, "xp": 300
+    }
+  ],
+  "exams": [
+    {
+      "id": "graduation", "name": "Graduation", "label": "learning",
+      "desc": "A fair fight against Drillmaster Varn. If you passed the drills, you can win this. First to 2 rounds.",
+      "player_kit": {"bracket": "warlord", "kit": "hybrid"},
+      "bot": {"name": "Drillmaster Varn", "instructor": true, "kit": {"bracket": "warlord", "kit": "hybrid"},
+        "config": {"mode": "fight", "skill": 0.5, "reaction_ticks": 4, "prayer_accuracy": 0.4, "eat_hp": 28, "eat_delay": 5, "fake_switch_chance": 0.0, "spec_hp": 40, "spec_chance": 0.2, "attack_range": 6}},
+      "rounds_to_win": 2, "xp": 600, "reward": ""
+    },
+    {
+      "id": "instructors_challenge", "name": "Instructor's Challenge", "label": "aspirational",
+      "desc": "Varn fights like a seasoned PvPer: fast wards, fake switches, sharp specs. Meant for players who are already PvP-ready.",
+      "player_kit": {"bracket": "warlord", "kit": "hybrid"},
+      "bot": {"name": "Drillmaster Varn", "instructor": true, "kit": {"bracket": "warlord", "kit": "hybrid"},
+        "config": {"mode": "fight", "skill": 0.95, "reaction_ticks": 1, "prayer_accuracy": 0.95, "eat_hp": 45, "eat_delay": 0, "fake_switch_chance": 0.35, "spec_hp": 60, "spec_chance": 0.9, "attack_range": 0}},
+      "rounds_to_win": 2, "xp": 1000, "reward": "cape_trim:instructor"
+    }
+  ],
+  "dummy": {
+    "id": "dummy", "name": "Training dummy room",
+    "desc": "Hit the dummy and see live accuracy, max hit and damage per tick for your loadout and prayers. Uses the real combat formulas.",
+    "player_kit": {"bracket": "", "kit": "player"},
+    "window_ticks": 25
+  },
+  "graduation_target": {"min": 0.6, "max": 0.8, "student_skill": 0.7}
+}

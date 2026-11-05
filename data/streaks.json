@@ -1,0 +1,8 @@
+{
+  "_doc": "Kill streak rewards (GDD 8). Kills made by streak rewards don't count toward the next streak.",
+  "rewards": [
+    {"id": "scrying_orb",   "name": "Scrying Orb",      "kills": 3, "hotkey": "5", "duration_ticks": 50, "desc": "Every enemy shows on your team's minimap for 30 s."},
+    {"id": "meteor_strike", "name": "Meteor Strike",    "kills": 5, "hotkey": "6", "warning_ticks": 3, "size": 5, "min_damage": 15, "max_damage": 30, "desc": "Click a tile: a 5x5 meteor lands after a 3-tick warning."},
+    {"id": "guardian",      "name": "Summoned Guardian","kills": 7, "hotkey": "7", "duration_ticks": 75, "hp": 150, "max_hit": 20, "speed": 5, "range": 8, "att_magic": 60, "desc": "A guardian fights beside you for 45 s."}
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "_doc": "XP curve (GDD 5): XP from L to L+1 = xp_base * xp_growth^(L-1), rounded to nearest round_to.",
+  "max_level": 40,
+  "xp_base": 600,
+  "xp_growth": 1.07,
+  "round_to": 10,
+  "max_prestige": 10,
+  "titles": [
+    {"from": 1, "name": "Recruit"}, {"from": 4, "name": "Squire"}, {"from": 8, "name": "Footman"},
+    {"from": 12, "name": "Man-at-Arms"}, {"from": 16, "name": "Sergeant"}, {"from": 20, "name": "Knight"},
+    {"from": 24, "name": "Knight-Captain"}, {"from": 28, "name": "Paladin"}, {"from": 32, "name": "Champion"},
+    {"from": 36, "name": "Warlord"}, {"from": 40, "name": "Grandmaster"}
+  ],
+  "xp": {
+    "per_damage": 4, "kill": 100, "assist": 30, "assist_min_damage": 10, "spec_kill_bonus": 50, "revenge_bonus": 50,
+    "capture": 150, "rune": 300, "round_win": 300, "match_win": 1000, "match_loss": 300, "guardian_kill": 100
+  },
+  "class_slots": [{"level": 4, "slots": 2}, {"level": 12, "slots": 3}, {"level": 20, "slots": 4}, {"level": 30, "slots": 5}]
+}

@@ -1,0 +1,69 @@
+{
+  "_doc": "Tiered weapon and ammo types (GDD 7). Stats at tier T = base + per_tier * (T - 1). Specials only from spec_from_tier. Bonus keys: att_melee att_ranged att_magic def_melee def_ranged def_magic str_melee str_ranged dmg_magic prayer.",
+  "weapons": {
+    "dagger": {
+      "name": "dagger", "style": "melee", "family": "metal", "slot": "weapon", "speed": 4, "range": 1, "two_handed": false,
+      "base": {"att_melee": 26, "str_melee": 14}, "per_tier": {"att_melee": 6, "str_melee": 5},
+      "spec_from_tier": 6, "spec": {"id": "double_hit", "cost": 25}, "mesh": "dagger"
+    },
+    "scimitar": {
+      "name": "scimitar", "style": "melee", "family": "metal", "slot": "weapon", "speed": 4, "range": 1, "two_handed": false,
+      "base": {"att_melee": 30, "str_melee": 18}, "per_tier": {"att_melee": 7, "str_melee": 6},
+      "spec_from_tier": 6, "spec": {"id": "sever", "cost": 55}, "mesh": "scimitar"
+    },
+    "longsword": {
+      "name": "longsword", "style": "melee", "family": "metal", "slot": "weapon", "speed": 5, "range": 1, "two_handed": false,
+      "base": {"att_melee": 32, "str_melee": 26}, "per_tier": {"att_melee": 7, "str_melee": 7},
+      "spec_from_tier": 6, "spec": {"id": "cleave", "cost": 25}, "mesh": "sword"
+    },
+    "battleaxe": {
+      "name": "battleaxe", "style": "melee", "family": "metal", "slot": "weapon", "speed": 6, "range": 1, "two_handed": false,
+      "base": {"att_melee": 26, "str_melee": 38}, "per_tier": {"att_melee": 6, "str_melee": 8},
+      "spec_from_tier": 6, "spec": {"id": "rampage", "cost": 100}, "mesh": "axe"
+    },
+    "warhammer": {
+      "name": "warhammer", "style": "melee", "family": "metal", "slot": "weapon", "speed": 6, "range": 1, "two_handed": false,
+      "base": {"att_melee": 24, "str_melee": 40}, "per_tier": {"att_melee": 6, "str_melee": 8},
+      "spec_from_tier": 6, "spec": {"id": "armour_break", "cost": 50}, "mesh": "hammer"
+    },
+    "shortbow": {
+      "name": "shortbow", "style": "ranged", "family": "wood", "slot": "weapon", "speed": 4, "range": 7, "two_handed": true, "uses_ammo": "arrow",
+      "base": {"att_ranged": 30}, "per_tier": {"att_ranged": 7},
+      "spec_from_tier": 6, "spec": {"id": "twin_shot", "cost": 55}, "mesh": "bow"
+    },
+    "longbow": {
+      "name": "longbow", "style": "ranged", "family": "wood", "slot": "weapon", "speed": 6, "range": 9, "two_handed": true, "uses_ammo": "arrow",
+      "base": {"att_ranged": 38, "str_ranged": 10}, "per_tier": {"att_ranged": 8, "str_ranged": 2},
+      "spec_from_tier": 6, "spec": {"id": "twin_shot", "cost": 55}, "mesh": "longbow"
+    },
+    "crossbow": {
+      "name": "crossbow", "style": "ranged", "family": "metal", "slot": "weapon", "speed": 5, "range": 7, "two_handed": false, "uses_ammo": "bolt",
+      "base": {"att_ranged": 32}, "per_tier": {"att_ranged": 7},
+      "spec_from_tier": 6, "spec": {"id": "pinning_bolt", "cost": 50}, "mesh": "crossbow"
+    },
+    "throwing_knives": {
+      "name": "throwing knives", "style": "ranged", "family": "metal", "slot": "weapon", "speed": 3, "range": 4, "two_handed": false,
+      "base": {"att_ranged": 22, "str_ranged": 8}, "per_tier": {"att_ranged": 5, "str_ranged": 5},
+      "spec_from_tier": 6, "spec": {"id": "fan", "cost": 25}, "mesh": "knife"
+    },
+    "staff": {
+      "name": "staff", "style": "magic", "family": "staff", "slot": "weapon", "speed": 5, "range": 10, "two_handed": false,
+      "base": {"att_magic": 12, "def_magic": 4, "att_melee": 4}, "per_tier": {"att_magic": 4, "dmg_magic": 1, "def_magic": 1, "att_melee": 1},
+      "name_override": {"6": "Starstaff"}, "mesh": "staff"
+    },
+    "wand": {
+      "name": "wand", "style": "magic", "family": "staff", "slot": "weapon", "speed": 5, "range": 10, "two_handed": false, "min_tier": 3,
+      "base": {"att_magic": 20, "dmg_magic": 1, "def_melee": -4}, "per_tier": {"att_magic": 5, "dmg_magic": 1, "def_melee": -1},
+      "name_override": {"6": "Star wand"}, "mesh": "wand"
+    },
+    "defender": {
+      "name": "defender", "style": "melee", "family": "metal", "slot": "shield", "kind": "armour", "min_tier": 2,
+      "base": {"att_melee": 8, "str_melee": 4, "def_melee": 8, "def_ranged": 8}, "per_tier": {"att_melee": 3, "str_melee": 1, "def_melee": 3, "def_ranged": 3},
+      "mesh": "defender"
+    }
+  },
+  "ammo": {
+    "arrows": {"name": "arrows", "family": "metal", "ammo_type": "arrow", "base": {"str_ranged": 18}, "per_tier": {"str_ranged": 6}},
+    "bolts":  {"name": "bolts",  "family": "metal", "ammo_type": "bolt",  "base": {"str_ranged": 24}, "per_tier": {"str_ranged": 7}}
+  }
+}

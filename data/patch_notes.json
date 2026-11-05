@@ -1,0 +1,28 @@
+{
+  "_doc": "In-game patch notes (U9), written by hand. The newest version comes first; the game shows it once after an update. Each note lists the classes it affects ('all' = everyone); the 'what changed for my class' filter uses them. Keep application/config/version in project.godot equal to the newest version.",
+  "versions": [
+    {
+      "version": "0.6.0", "date": "2026-11-05", "title": "The Proving Grounds update",
+      "notes": [
+        {"text": "New: the Proving Grounds. Six drills (wards, freezes, special attacks, gear switching, combo eating, reading the enemy), a fair Graduation fight and the aspirational Instructor's Challenge, plus a training dummy room.", "classes": ["all"], "tag": "new"},
+        {"text": "New: brackets. Skirmisher (Defence 1, no plate), Vanguard (Defence 70, mid-tier kits) and Warlord (everything maxed) give everyone the same fixed kit. One bracket is featured each week. Even Ground is now Warlord and Pure Brawl is now Skirmisher.", "classes": ["all"], "tag": "new"},
+        {"text": "New: death recap while you wait to respawn, and a fight report with a tip after every match.", "classes": ["all"], "tag": "new"},
+        {"text": "New: Ranked. Duel and Last Stand on the week's featured bracket, human vs human only, unlocked at combat level 20. Eight-week seasons with placement matches, visible ranks from Stone to Warden, and cosmetic rewards for points (earned on wins and losses) and for your season peak.", "classes": ["all"], "tag": "new"},
+        {"text": "New: The Lab. An experimental playlist with one mutator a week (No Wards, Iron Wards, Spec Frenzy, Frozen Front, Low Rations, One Life). Vote keep, change or drop after each match.", "classes": ["all"], "tag": "new"},
+        {"text": "New: replays of your last 10 matches (watch, scrub, free camera, export), spectating on LAN, private matches with custom rules and stackable mutators, and a tournament helper for community nights.", "classes": ["all"], "tag": "new"},
+        {"text": "Matchmaking now keeps lobbies within about 8 combat levels (wider after a long wait), and the countdown shows your gear tier next to the lobby average.", "classes": ["all"], "tag": "change"},
+        {"text": "New: Free-for-All now has third-party protection. Once two players fight, nobody else can join in for 16 ticks. Brawl keeps the old free-for-all chaos.", "classes": ["all"], "tag": "new"},
+        {"text": "Kills now go to whoever dealt the most damage in the last 30 seconds, not the last hit.", "classes": ["all"], "tag": "change"},
+        {"text": "Bots are tagged [BOT] on nameplates, the scoreboard and the kill feed. Idle players are warned after 60 s and replaced by a bot after 90 s.", "classes": ["all"], "tag": "change"},
+        {"text": "Fixed: Snare Traps and Meteor Strike could hit a player whose spawn shield was still up. Traps can no longer be set before the fight starts.", "classes": ["all"], "tag": "fix"},
+        {"text": "Balance: wards now block 30% of damage (was 40%), so single-style classes aren't shut down by a correct ward.", "classes": ["warrior", "archer", "battlemage", "tribrid"], "tag": "balance"},
+        {"text": "Balance: plate armour's magic defence raised to 0 (was -12, falling with tier). Plate is still the weakest against magic.", "classes": ["warrior", "tribrid"], "tag": "balance"},
+        {"text": "Balance: robes defend less against melee and ranged (base 2 / 4, was 6 / 10).", "classes": ["battlemage", "tribrid"], "tag": "balance"},
+        {"text": "Balance: Warrior and Archer carry more main food (26, was 18), so single-style classes keep their supply edge in small supply packs.", "classes": ["warrior", "archer"], "tag": "balance"},
+        {"text": "Balance: Vanguard kits. The ranged kit uses a longbow (range 9) to answer 10-tile freezes, and the melee kit carries extra food.", "classes": ["warrior", "archer"], "tag": "balance"},
+        {"text": "Quality of life: each staff remembers its autocast, gear presets on V / B / N (Shift to save), a visual tick indicator, and a Change mode button after matches.", "classes": ["all"], "tag": "qol"},
+        {"text": "Playtests: optional local match telemetry (Options), an export button and a playtest feedback form.", "classes": ["all"], "tag": "qol"}
+      ]
+    }
+  ]
+}

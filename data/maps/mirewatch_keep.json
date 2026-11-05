@@ -1,0 +1,21 @@
+{
+  "_doc": "Swamp keep (GDD 4). Raised walkways between bog water; a central keep with two entrances, good for objective play. See castle_courtyard.json for the format.",
+  "id": "mirewatch_keep",
+  "name": "Mirewatch Keep",
+  "size": [72, 72],
+  "symmetry": "point",
+  "theme": {"floor": "#5d6b45", "floor2": "#56633f", "wall": "#4a4a42", "pillar": "#5e5a50", "water": "#3b4f3a", "sky": "#7f8f80", "fog": "#8a9a88", "sky_top": "#4a5a50", "sky_horizon": "#7c8c7a", "sky_ground": "#3c463a", "cloud": "#8c9c8a", "cloud_cover": 0.7, "sun_color": "#d8e0c0", "sun_yaw": 20, "sun_pitch": -45, "sun_energy": 0.75, "ambient_energy": 0.85, "fog_color": "#6c7c6a", "fog_density": 0.009, "weather": "fireflies"},
+  "walls": [
+    [28, 43, 6, 1], [38, 43, 6, 1],
+    [28, 29, 1, 14],
+    [20, 60, 4, 1], [48, 60, 4, 1],
+    [52, 52, 1, 5], [19, 50, 1, 5]
+  ],
+  "pillars": [[32, 39], [39, 39], [14, 52], [58, 52], [36, 52], [26, 46], [46, 47]],
+  "water": [[4, 40, 14, 8], [22, 48, 10, 6], [44, 40, 6, 10], [56, 46, 12, 6], [6, 56, 8, 6]],
+  "spawns": {"a": [[30, 64], [33, 66], [36, 64], [39, 66], [42, 64], [32, 68], [40, 68], [36, 68]]},
+  "ffa_spawns": [[6, 66], [65, 66], [20, 38], [52, 37], [36, 58]],
+  "obelisks": [[10, 52]],
+  "unique": {"obelisks": [[35, 35]]},
+  "dressing": {"kit": "mire", "styles": [{"rect": [20, 60, 4, 1], "style": "palisade"}, {"rect": [52, 52, 1, 5], "style": "palisade"}]}
+}

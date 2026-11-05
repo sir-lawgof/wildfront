@@ -1,0 +1,58 @@
+{
+  "_doc": "One-off items (GDD 7). Every unique weapon carries a special attack.",
+  "items": [
+    {"id": "whip", "name": "Whip", "slot": "weapon", "style": "melee", "weapon_type": "whip", "speed": 4, "range": 1, "two_handed": false,
+     "bonuses": {"att_melee": 58, "str_melee": 44}, "spec": {"id": "energy_drain", "cost": 50}, "mesh": "whip", "color": "#5a3d7a"},
+    {"id": "stone_maul", "name": "Stone Maul", "slot": "weapon", "style": "melee", "weapon_type": "stone_maul", "speed": 7, "range": 1, "two_handed": true,
+     "bonuses": {"att_melee": 50, "str_melee": 70}, "spec": {"id": "instant_maul", "cost": 50}, "mesh": "maul", "color": "#7d7d78"},
+    {"id": "greatblade", "name": "Greatblade", "slot": "weapon", "style": "melee", "weapon_type": "greatblade", "speed": 6, "range": 1, "two_handed": true,
+     "bonuses": {"att_melee": 80, "str_melee": 84}, "spec": {"id": "greatblade", "cost": 50}, "mesh": "greatsword", "color": "#e3c35a"},
+    {"id": "claws", "name": "Claws", "slot": "weapon", "style": "melee", "weapon_type": "claws", "speed": 4, "range": 1, "two_handed": true,
+     "bonuses": {"att_melee": 66, "str_melee": 52}, "spec": {"id": "claws", "cost": 50}, "mesh": "claws", "color": "#b03a2e"},
+    {"id": "void_blade", "name": "Void Blade", "slot": "weapon", "style": "melee", "weapon_type": "void_blade", "speed": 4, "range": 1, "two_handed": false,
+     "bonuses": {"att_melee": 76, "str_melee": 62}, "spec": {"id": "void_strike", "cost": 50}, "mesh": "sword", "color": "#6b2fbf"},
+
+    {"id": "javelins", "name": "Javelins", "slot": "weapon", "style": "ranged", "weapon_type": "javelins", "speed": 5, "range": 5, "two_handed": false,
+     "bonuses": {"att_ranged": 52, "str_ranged": 46}, "spec": {"id": "bleed", "cost": 50}, "mesh": "javelin", "color": "#8a6d3b"},
+    {"id": "duskbow", "name": "Duskbow", "slot": "weapon", "style": "ranged", "weapon_type": "duskbow", "speed": 9, "range": 9, "two_handed": true, "uses_ammo": "arrow",
+     "bonuses": {"att_ranged": 74, "str_ranged": 12}, "spec": {"id": "dusk_volley", "cost": 55}, "mesh": "longbow", "color": "#2b2b3a"},
+    {"id": "heavy_ballista", "name": "Heavy Ballista", "slot": "weapon", "style": "ranged", "weapon_type": "heavy_ballista", "speed": 7, "range": 9, "two_handed": true, "uses_ammo": "bolt",
+     "bonuses": {"att_ranged": 82, "str_ranged": 30}, "spec": {"id": "ballista_shot", "cost": 65}, "mesh": "crossbow", "color": "#6b4a2a"},
+    {"id": "sunfire_crossbow", "name": "Sunfire Crossbow", "slot": "weapon", "style": "ranged", "weapon_type": "sunfire_crossbow", "speed": 5, "range": 7, "two_handed": false, "uses_ammo": "bolt",
+     "bonuses": {"att_ranged": 92}, "spec": {"id": "sunfire_shot", "cost": 40}, "mesh": "crossbow", "color": "#f0c040"},
+
+    {"id": "forbidden_staff", "name": "Forbidden Staff", "slot": "weapon", "style": "magic", "weapon_type": "forbidden_staff", "speed": 5, "range": 10, "two_handed": false, "forbidden": true,
+     "bonuses": {"att_magic": 30, "dmg_magic": 2, "def_magic": 8, "att_melee": 6}, "mesh": "staff", "color": "#3b1f4f"},
+    {"id": "eruption_staff", "name": "Eruption Staff", "slot": "weapon", "style": "magic", "weapon_type": "eruption_staff", "speed": 5, "range": 10, "two_handed": true, "forbidden": true,
+     "bonuses": {"att_magic": 56, "dmg_magic": 6, "def_magic": 12}, "spec": {"id": "eruption", "cost": 55}, "mesh": "staff", "color": "#d9531e"},
+    {"id": "tempest_staff", "name": "Tempest Staff", "slot": "weapon", "style": "magic", "weapon_type": "tempest_staff", "speed": 5, "range": 10, "two_handed": true, "forbidden": true,
+     "bonuses": {"att_magic": 70, "dmg_magic": 8, "def_magic": 14}, "spec": {"id": "chain_lightning", "cost": 50}, "mesh": "staff", "color": "#7fb3ff"},
+
+    {"id": "diamond_bolts", "name": "Diamond-tipped bolts", "slot": "ammo", "style": "ranged", "ammo_type": "bolt", "bonuses": {"str_ranged": 45}, "bolt_effect": {"id": "pierce", "chance": 0.10}, "color": "#e8f6ff"},
+    {"id": "dragonfire_bolts", "name": "Dragonfire bolts", "slot": "ammo", "style": "ranged", "ammo_type": "bolt", "bonuses": {"str_ranged": 52}, "bolt_effect": {"id": "fire_burst", "chance": 0.06}, "color": "#ff7a1a"},
+    {"id": "onyx_bolts", "name": "Onyx bolts", "slot": "ammo", "style": "ranged", "ammo_type": "bolt", "bonuses": {"str_ranged": 58}, "bolt_effect": {"id": "life_leech", "chance": 0.11}, "color": "#2a2a2a"},
+
+    {"id": "warriors_ring", "name": "Warrior's Ring", "slot": "ring", "style": "melee", "bonuses": {"str_melee": 8}, "color": "#c0392b"},
+    {"id": "rangers_boots", "name": "Ranger's Boots", "slot": "feet", "style": "ranged", "bonuses": {"att_ranged": 8, "def_ranged": 4, "def_magic": 4}, "color": "#4d7a3a"},
+    {"id": "archers_quiver", "name": "Archer's Quiver", "slot": "cape", "style": "ranged", "bonuses": {"str_ranged": 4, "att_ranged": 2}, "color": "#7a5a2a"},
+    {"id": "archers_ring", "name": "Archer's Ring", "slot": "ring", "style": "ranged", "bonuses": {"att_ranged": 8}, "color": "#3a7a4d"},
+    {"id": "eagle_eye_coif", "name": "Eagle-eye Coif", "slot": "head", "style": "ranged", "bonuses": {"att_ranged": 10, "def_ranged": 8, "def_magic": 8, "def_melee": 4}, "color": "#8c6f3a"},
+    {"id": "fletchers_pouch", "name": "Fletcher's Pouch", "slot": "cape", "style": "ranged", "bonuses": {"str_ranged": 8, "att_ranged": 4, "def_ranged": 4}, "color": "#9a7a3a"},
+    {"id": "archers_buckler", "name": "Archer's Buckler", "slot": "shield", "style": "ranged", "bonuses": {"att_ranged": 6, "def_ranged": 14, "def_magic": 10, "def_melee": 8}, "color": "#6f5a35"},
+
+    {"id": "wizard_boots", "name": "Wizard Boots", "slot": "feet", "style": "magic", "bonuses": {"att_magic": 6, "def_magic": 2}, "color": "#2e4a9a"},
+    {"id": "spellcasters_ring", "name": "Spellcaster's Ring", "slot": "ring", "style": "magic", "bonuses": {"att_magic": 8}, "color": "#5b3a9a"},
+    {"id": "novice_tome", "name": "Novice Tome", "slot": "shield", "style": "magic", "bonuses": {"att_magic": 6, "dmg_magic": 1, "def_magic": 4}, "color": "#6a4f2a"},
+    {"id": "mages_mantle", "name": "Mage's Mantle", "slot": "cape", "style": "magic", "bonuses": {"att_magic": 8, "def_magic": 4}, "color": "#3a2a7a"},
+    {"id": "arcane_tome", "name": "Arcane Tome", "slot": "shield", "style": "magic", "bonuses": {"att_magic": 10, "dmg_magic": 2, "def_magic": 8}, "color": "#4a2f8a"},
+    {"id": "storm_amulet", "name": "Storm Amulet", "slot": "neck", "style": "magic", "bonuses": {"att_magic": 6, "dmg_magic": 2}, "color": "#7fb3ff"},
+    {"id": "frostbound_charm", "name": "Frostbound Charm", "slot": "ring", "style": "magic", "bonuses": {"att_magic": -4}, "freeze_bonus_ticks": 2, "color": "#a8e6ff"},
+    {"id": "starbound_tome", "name": "Starbound Tome", "slot": "shield", "style": "magic", "bonuses": {"att_magic": 14, "dmg_magic": 3, "def_magic": 12}, "color": "#39c1d1"},
+    {"id": "wyrm_eye_amulet", "name": "Wyrm-eye Amulet", "slot": "neck", "style": "magic", "bonuses": {"att_magic": 12, "dmg_magic": 3}, "color": "#c23b2e"},
+    {"id": "wyrmbone_tome", "name": "Wyrmbone Tome", "slot": "shield", "style": "magic", "bonuses": {"att_magic": 18, "dmg_magic": 4, "def_magic": 16}, "color": "#e8dcc0"},
+
+    {"id": "melee_cape", "name": "Melee cape", "slot": "cape", "style": "melee", "bonuses": {"def_melee": 4, "def_ranged": 4, "def_magic": 4, "prayer": 2}, "color": "#9b1c1c", "cosmetic": true},
+    {"id": "ranged_cape", "name": "Ranged cape", "slot": "cape", "style": "ranged", "bonuses": {"def_melee": 4, "def_ranged": 4, "def_magic": 4, "prayer": 2}, "color": "#2f7d32", "cosmetic": true},
+    {"id": "magic_cape", "name": "Magic cape", "slot": "cape", "style": "magic", "bonuses": {"def_melee": 4, "def_ranged": 4, "def_magic": 4, "prayer": 2}, "color": "#2340a8", "cosmetic": true}
+  ]
+}

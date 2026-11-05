@@ -1,0 +1,32 @@
+{
+  "_doc": "Default classes (GDD 6). 'best:<type>' picks the best unlocked tier of a tiered weapon type; 'best:<armour class>' the best unlocked full set; 'best:<armour class>:<slot>' one piece. Default classes upgrade on their own.",
+  "defaults": {
+    "warrior": {
+      "name": "Warrior", "style": "melee", "primary": "best:scimitar", "secondary": [], "armour": "best:plate", "switches": [],
+      "spellbook": "elemental", "main_food": 26, "perks": ["extra_rations", "rebuke", "unbound"],
+      "desc": "Melee tank. Scimitar and plate, lots of food."
+    },
+    "archer": {
+      "name": "Archer", "style": "ranged", "primary": "best:shortbow", "secondary": [], "armour": "best:hide", "switches": [],
+      "spellbook": "elemental", "main_food": 26, "perks": ["extra_rations", "rebuke", "unbound"],
+      "desc": "Ranged kiter. Shortbow and hides, strong against mages."
+    },
+    "battlemage": {
+      "name": "Battlemage", "style": "magic", "primary": "best:staff", "secondary": ["best:scimitar"], "armour": "best:robe", "switches": [],
+      "spellbook": "elemental", "main_food": 14, "perks": ["extra_rations", "rebuke", "unbound"],
+      "desc": "Freeze them, then switch to the scimitar."
+    },
+    "tribrid": {
+      "name": "Tribrid", "style": "magic", "primary": "best:staff", "secondary": ["best:shortbow", "best:scimitar"], "armour": "best:robe",
+      "switches": ["best:hide:body", "best:hide:legs", "best:plate:body", "best:plate:legs"],
+      "spellbook": "elemental", "main_food": 10, "perks": ["extra_rations", "rebuke", "unbound"],
+      "desc": "All three styles. Fewer supplies, more mind games."
+    }
+  },
+  "supply_packs": {
+    "_doc": "Supplies per life. main_food_scale multiplies the class's main food (so inventory budget still matters); Extra Rations adds the pack's extra_rations main food on top (+3 in full packs). Tuned with tools/balance_sim.gd.",
+    "full":     {"main_food_scale": 0.3,  "extra_rations": 3, "combo": 2, "brew": 1, "restore": 1},
+    "skirmish": {"main_food_scale": 0.12, "extra_rations": 1, "combo": 1, "brew": 0, "restore": 1}
+  },
+  "max_switches": 4
+}
