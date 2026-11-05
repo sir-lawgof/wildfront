@@ -131,14 +131,17 @@ static func _best_accessory(slot: String, style: String, unlocked: Dictionary) -
 
 
 ## Main entry. class_def: entry from classes.json "defaults" or a custom class.
-## opts: {supply: "full"|"skirmish", pure: bool}
+## opts: {supply: "full"|"skirmish", armour_classes: [allowed armour classes, empty = all], armour_fallback: class}
 static func build(class_def: Dictionary, unlocked: Dictionary, opts: Dictionary = {}) -> Dictionary:
 	var eq := {}
 	for s in DB.EQUIP_SLOTS:
 		eq[s] = ""
 	var inv: Array = []
 	var is_default := str(class_def.get("primary", "")).begins_with("best:")
-	var pure := bool(opts.get("pure", false))
+	var allowed_armour: Array = opts.get("armour_classes", [])
+	var armour_ok := func(id: String) -> bool:
+		var ac := str(DB.item(id).get("armour_class", ""))
+		return allowed_armour.is_empty() or ac == "" or allowed_armour.has(ac)
 
 	var primary := resolve(str(class_def.get("primary", "")), unlocked)
 	if primary == "":
@@ -156,14 +159,15 @@ static func build(class_def: Dictionary, unlocked: Dictionary, opts: Dictionary 
 		for id in DB.expand_unlock(aref):
 			if unlocked.has(str(id)):
 				armour_ids.append(id)
-	if pure:
+	if not allowed_armour.is_empty():
 		var replaced: Array = []
 		for id in armour_ids:
-			if str(DB.item(str(id)).get("armour_class", "")) == "plate":
+			if not armour_ok.call(str(id)):
 				continue
 			replaced.append(id)
 		if replaced.size() < armour_ids.size():
-			replaced = best_set("hide", unlocked)
+			var fb := str(opts.get("armour_fallback", ""))
+			replaced = best_set(fb if fb != "" else str(allowed_armour[0]), unlocked)
 		armour_ids = replaced
 	for id in armour_ids:
 		var it := DB.item(str(id))
@@ -198,7 +202,7 @@ static func build(class_def: Dictionary, unlocked: Dictionary, opts: Dictionary 
 	for ref in class_def.get("switches", []):
 		var id := resolve(str(ref), unlocked)
 		if id != "":
-			if pure and str(DB.item(id).get("armour_class", "")) == "plate":
+			if not armour_ok.call(id):
 				continue
 			switches.append(id)
 	switches = switches.slice(0, int(DB.classes.get("max_switches", 4)))
@@ -249,11 +253,12 @@ static func build(class_def: Dictionary, unlocked: Dictionary, opts: Dictionary 
 	if perks.has("spare_spec"):
 		inv.append({"id": "spec_tonic", "doses": 1})
 	if unlocked.has("kelp_roll"):
-		for i in range(int(pack.get("combo", 0))):
+		for i in range(int(round(int(pack.get("combo", 0)) * float(opts.get("food_mult", 1.0))))):
 			inv.append({"id": "kelp_roll", "doses": 1})
 	var food := int(round(int(class_def.get("main_food", 28)) * float(pack.get("main_food_scale", 1.0))))
 	if perks.has("extra_rations"):
 		food += int(pack.get("extra_rations", 3))
+	food = int(round(food * float(opts.get("food_mult", 1.0))))  # The Lab's Low Rations
 	food = clampi(food, 0, 28 - inv.size())
 	for i in range(food):
 		inv.append({"id": "pike", "doses": 1})
@@ -280,6 +285,6 @@ static func build(class_def: Dictionary, unlocked: Dictionary, opts: Dictionary 
 		"equipment": eq, "inventory": inv, "spellbook": book, "autocast": autocast,
 		"perks": perks, "style": style, "primary": primary,
 		"combat_boosts": unlocked.has("feature:combat_potions"),
-		"pure": pure, "weapon_mods": class_def.get("weapon_mods", {}),
+		"allowed_armour": allowed_armour.duplicate(), "stats": {}, "weapon_mods": class_def.get("weapon_mods", {}),
 		"spell_mods": class_def.get("spell_mods", {}),
 	}

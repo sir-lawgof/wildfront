@@ -71,7 +71,7 @@ Combat follows OSRS rules as closely as possible. That makes it feel right to Pv
 
 ### Stats
 
-In standard playlists every player has 99 Attack, Strength, Defence, Ranged, Magic, Hitpoints and Prayer. Stats never change with level; progression comes from gear, spells and prayers. A Pure Brawl playlist (section 3) locks Defence at 1 for pure-style builds.
+In standard playlists every player has 99 Attack, Strength, Defence, Ranged, Magic, Hitpoints and Prayer. Stats never change with level; progression comes from gear, spells and prayers. Bracket playlists (section 3, `data/brackets.json`) override some stats, for example the Skirmisher bracket locks Defence at 1 for pure-style builds.
 
 ### Combat triangle
 
@@ -95,7 +95,7 @@ Ranged uses the same shape with Ranged Strength. Magic max hit comes from the sp
 
 ### Prayers in combat
 
-- Overhead protection prayers cut damage of the matching style by 40% (the OSRS PvP value, not the full block you get against monsters).
+- Overhead protection prayers cut damage of the matching style by 30% (`protect_reduction` in `data/prayers.json`). The OSRS PvP value is 40%; the U9 balance pass lowered it so single-style classes aren't shut down by a correct ward (see `docs/DECISIONS.md`).
 - Prayer points drain each tick based on which prayers are active. Points reach 0 → all prayers switch off.
 - Switching overheads in reaction to the enemy's gear swap is the core skill of the game.
 
@@ -149,12 +149,12 @@ Every match follows the same flow, borrowed from CoD4's lobby loop: queue → lo
 | Hold the Banner | Headquarters | 5v5 | A banner spawns at a random point; hold it to score. Holders can't respawn until it is taken | Partial |
 | Last Stand | Team elimination | 3v3 | Wipe the other team; best of 7 rounds | No |
 | Duel | 1v1 arena | 1v1 | First to 3 kills | Between kills |
-| Pure Brawl | Playlist variant | Any mode | Defence fixed at 1, gear limited to pure-friendly items | Mode's rule |
+| Brackets (Skirmisher, Vanguard, Warlord) | Playlist variant | Any mode | Fixed kits per bracket: Skirmisher Defence 1 and no plate; Vanguard Defence 70, mid-tier kit; Warlord everything maxed | Mode's rule |
 
 ### Playlists
 
-- Casual playlists for every mode at launch, with join-in-progress for respawn modes and matchmaking by combat level (section 5). Even Ground playlist: everyone gets the same top-tier kit.
-- Ranked playlist later: Rune Ritual and Duel only, with seasonal ranks separate from style levels. Unlocks at combat level 20.
+- Casual playlists for every mode at launch, with join-in-progress for respawn modes and matchmaking by combat level (section 5). Bracket playlists: everyone gets the same fixed kit (the Warlord bracket replaces Even Ground). One bracket is featured each week.
+- Ranked: Duel and Last Stand, using the week's featured bracket kits, with seasonal ranks separate from style levels. Unlocks at combat level 20. (Owner decision, 2026-11-05; was Rune Ritual and Duel.)
 - Private matches with custom rules (kill limit, time, allowed gear, tick-speed toggle) for testing and tournaments.
 
 ### Bots
@@ -232,7 +232,7 @@ If you dealt no damage in a match, split XP goes to the style of your class's pr
 Gear now gets stronger with level, so a level-40 player has a real edge over a level-1 player. Three rules keep new players in the game:
 
 - **Combat level brackets.** Casual playlists match players within about 8 combat levels of each other when the queue allows. This is the game's version of OSRS Wilderness level ranges.
-- **Even Ground playlist.** Everyone gets the same top-tier kit for the match, as in Last Man Standing. New players can try endgame gear, and it is the fairest test of skill. XP still counts.
+- **Bracket playlists (Even Ground is now the Warlord bracket).** Everyone gets the same fixed kit for the match, as in Last Man Standing. New players can try endgame gear, and it is the fairest test of skill. XP still counts.
 - **Balanced tiers.** Each tier is roughly 6–8% stronger than the one before, not double. Skill at switching and prayer still beats a one-tier gear edge.
 
 ### Titles
@@ -387,7 +387,7 @@ Only one prayer of each kind can be active (for example, one Strength boost). Hi
 
 | Prayer | Unlocked by | Level | Effect | OSRS analogue |
 | --- | --- | --- | --- | --- |
-| Ward of Blades / Arrows / Spells | Combat level | 1 | −40% damage from that style | Protect from Melee / Missiles / Magic |
+| Ward of Blades / Arrows / Spells | Combat level | 1 | −30% damage from that style | Protect from Melee / Missiles / Magic |
 | Stone Skin I / II / III | Combat level | 2 / 7 / 12 | +5 / 10 / 15% Defence | Thick Skin / Rock Skin / Steel Skin |
 | Mending | Combat level | 5 | Hitpoints regenerate twice as fast | Rapid Heal |
 | Endurance | Combat level | 10 | Potion boosts wear off 50% slower | Preserve |

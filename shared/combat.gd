@@ -43,8 +43,11 @@ static func hit_delay(style: String, distance: int) -> int:
 	return 0
 
 
-static func protect_damage(dmg: int) -> int:
-	return int(floor(dmg * (1.0 - DB.protect_reduction)))
+## reduction < 0 = the data value (prayers.json protect_reduction); The Lab can pass its own.
+static func protect_damage(dmg: int, reduction: float = -1.0) -> int:
+	if reduction < 0.0:
+		reduction = DB.protect_reduction
+	return int(floor(dmg * (1.0 - reduction)))
 
 
 # ---------------------------------------------------------------- fighter-level helpers

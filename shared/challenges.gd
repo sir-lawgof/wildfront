@@ -112,6 +112,8 @@ static func process(events: Array, progress: Dictionary, completed: Array, match
 				continue
 			if not _matches(e, c.get("filter", {})):
 				continue
+			if bool(c.get("human_only", false)) and bool(e.get("victim_bot", false)):
+				continue  # U5 bot honesty: bot kills never count toward human-only challenges
 			add += int(e.get(str(c["sum"]), 0)) if c.has("sum") else 1
 		if add == 0:
 			continue

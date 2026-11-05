@@ -1,0 +1,33 @@
+{
+  "_doc": "The Lab (U7): one experimental mutator per week on the Lab playlist. A mutator only overrides values the game already reads: 'rules' = keys of data/rules.json (plus protect_reduction from prayers.json) for this match; 'mode' = keys of the mode in data/modes.json; 'loadout' = food_mult (scales main and combo food) and kit (force a bracket kit: melee, ranged, magic, hybrid). The Lab plays the Warlord bracket. rotation is weekly from brackets.json rotation_epoch.",
+  "rotation": ["iron_wards", "no_wards", "spec_frenzy", "frozen_front", "low_rations", "one_life"],
+  "mutators": {
+    "no_wards": {
+      "name": "No Wards", "desc": "Protection prayers are disabled. Pure damage races.",
+      "source": "Community request for a mode with no Protect Prayers.",
+      "rules": {"wards_enabled": false}
+    },
+    "iron_wards": {
+      "name": "Iron Wards", "desc": "Wards block 60% of matching damage instead of 30%.",
+      "source": "A protection-prayer trial run in another game and reverted; here we can measure it.",
+      "rules": {"protect_reduction": 0.6}
+    },
+    "spec_frenzy": {
+      "name": "Spec Frenzy", "desc": "Special attack energy regenerates twice as fast.",
+      "rules": {"spec_regen_amount": 20}
+    },
+    "frozen_front": {
+      "name": "Frozen Front", "desc": "Magic kits only, and freezes last twice as long.",
+      "rules": {"freeze_mult": 2.0},
+      "loadout": {"kit": "magic"}
+    },
+    "low_rations": {
+      "name": "Low Rations", "desc": "Half the main and combo food.",
+      "loadout": {"food_mult": 0.5}
+    },
+    "one_life": {
+      "name": "One Life", "desc": "Elimination rules in any mode: one life per round, wipe the other side.",
+      "mode": {"type": "elimination", "respawn": false, "streaks": false, "rounds_to_win": 3, "round_time_s": 150}
+    }
+  }
+}

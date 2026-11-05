@@ -49,8 +49,7 @@ revisit; most are a single data value.
 ## Progression
 
 - XP curve, titles, unlock tables, perks and challenge values are taken straight from the GDD.
-- **Even Ground** gives everyone every unlock, so default classes pick top-tier gear.
-- **Pure Brawl** sets Defence to 1 and swaps plate for the best hide set.
+- **Even Ground** and **Pure Brawl** became the Warlord and Skirmisher brackets in U2 (see below).
 - **Bots are matchmade** within ±3 levels per style of the players, the stand-in for combat-level brackets.
 - **Custom class food** = 18 − 2 × (secondaries + switch pieces), minimum 6, then scaled by the mode's pack.
 - **Some challenges are approximated**: Kiter = ranged kills taking no damage that life; Pinned Down =
@@ -137,10 +136,163 @@ revisit; most are a single data value.
 - **Placeholder map art** stays available behind Options -> "Placeholder map art" and `--placeholder-map` until
   you approve the kits (ENVIRONMENT.md E6 says to remove it after approval).
 
+## Community PvP updates (docs/COMMUNITY_UPDATES.md)
+
+- **Order approved by the owner (2026-11-04):** U5 → U10 → U11 → U2 → U6 → U1 → U9 → U7 → U8 → U3 → U4. U3's
+  human matchmaking and U4 ranked only pay off once online play exists.
+- **Kill credit in every mode (owner decision):** the kill goes to whoever dealt the most damage in the last
+  `kill_credit_window_ticks` (50 = 30 s, `data/rules.json`); ties go to the latest hitter; if nobody hit inside
+  the window, the latest hitter. Guardian and streak hits count for their owner. Kill style, weapon, spec and
+  streak flags come from the credited player's own last hit. Assists are unchanged (10+ damage).
+- **Protected states:** nothing damages or freezes a spawn-shielded player (`Sim.deal_damage`, `Sim._freeze`).
+  Before U5, Snare Traps and Meteor Strike ignored the shield. A shielded player doesn't set off (or use up) a
+  trap. Traps can't be set before the fight starts.
+- **Engagement timer (FFA):** `engagement_ticks` per mode (`ffa` = 16, new `ffa_brawl` "Brawl" = 0). It starts
+  on the first attack, hit or miss, not after both sides have hit, so nobody can jump in while the victim
+  turns to fight back (like Jagex's single-way timer). Every attack between the pair restarts it; it ends
+  when it runs out or either dies. Others can't attack the pair and the pair can't attack others. Area
+  damage (Meteor Strike, Reckoning) isn't blocked. Bots pick another target.
+- **AFK:** a human with no real input (chat and "ready" don't count) for `afk_warn_s` (60) while alive in a live
+  phase is warned and flagged; at `afk_takeover_s` (90) the server hands the fighter to a bot, tags it as a bot
+  and the match counts as left (forfeit). Kills on an AFK-flagged player still add to the score, so a player
+  standing still isn't impossible to kill, but give no kill stat, kill XP, streak or challenge progress.
+- **LAN leavers:** a peer that disconnects mid-match is taken over by a bot straight away and counts as left.
+- **Leaver cooldown:** `Progression.leave_cooldown_s()` with `leave_cooldown_steps_min` [0, 2, 5, 15] over
+  `leave_cooldown_window_h` (24). Built and tested now; enforced (with a leave history in the profile) when
+  ranked exists in U4.
+- **Bot honesty:** bots show "[BOT]" on nameplates, hover/right-click text and the kill feed, and a BOT column on
+  the scoreboard. Challenges can set `"human_only": true` so kills on bots don't count; none do yet, because
+  single-player is all bots. Kill events carry `victim_bot`.
+- **FFA pacing with the engagement timer:** bot FFA at level ~10 runs ~3.2 kills/min (Brawl ~3.8). Clan Clash
+  is unchanged at ~4.8. Neither FFA variant reaches the 20-kill limit in 10 minutes with bots (Brawl, which
+  has no timer, doesn't either), so the limit is worth a look when tuning FFA.
+
+- **Owner decisions (2026-11-05):** brackets Skirmisher / Vanguard / Warlord; U3 tier cap **A (no cap)**; ranked
+  is **Duel + Last Stand** and unlocks at combat level 20 (GDD updated); mid-tier season reward in **8-12 hours**.
+- **U11 combat log:** `Sim.clog` (`shared/combat_log.gd`) records hits (with the target's ward at the moment the
+  attack was made, which is what decides protection), other damage, eating (with wasted healing), ward
+  changes, freezes (with source), specs, deaths (time-to-kill, spec energy and food left) and spawns. U6 and
+  U11 both read it. Specs "available" = used + spec energy left at each death / 50 (an approximation).
+- **U11 telemetry:** one record per match in `user://telemetry/` (Options toggle, default on, no names or
+  machine info). Built server-side in `Telemetry.record()` and sent in the summary. Options -> "Export
+  telemetry" zips the folder. Playtest build = `-- --playtest` or project setting `wildfront/playtest_build`,
+  which adds a 1-5 rating + comment row to the results screen, saved into that match's record.
+  `tools/telemetry_report.gd` reads .json and .zip files; sample data and its report are in
+  `tools/telemetry_sample/` (regenerate with `-- make_sample=6`).
+
+- **U2 brackets** (`data/brackets.json`, `shared/brackets.gd`): Skirmisher (Defence 1, hide/robes only, kits from
+  level-40 unlocks), Vanguard (Defence 70, kits from level-22 unlocks = tier 5, unique items banned so no special
+  attacks), Warlord (every unlock, all stats 99). Everyone gets the bracket's fixed kit for their class's style:
+  melee, ranged, magic, or hybrid (a class carrying weapons of all three styles). Custom-class gear and perks don't
+  apply inside a bracket. Combat stats stay 99 except the bracket's overrides.
+- **One system:** the Even Ground and Pure Brawl playlists are now the Warlord and Skirmisher playlists (old ids
+  are mapped for safety). `Loadout.build` takes allowed armour classes instead of a `pure` flag; loadouts carry
+  `stats` overrides and `allowed_armour`.
+- **Featured bracket:** `rotation` in brackets.json, weekly from `rotation_epoch` (a Monday, local time), shown on
+  the Play screen with days left. Ranked (U4) uses it.
+- **Balance finding:** Battlemage wins 69-75% of duels overall in every bracket (and did before U2: at level 35
+  it beat Archer 100%). Tuned in U9. `server/balance.gd` holds the duel runner; `balance_sim.gd -- brackets=N`
+  prints per-bracket class tables.
+
+- **U6 death recap:** built on the server when you die (`Sim.death_recap`) from the combat log and sent only to
+  you while dead: the last 12 hits (attacker, style, weapon, damage, the ward you had when the attack was made,
+  wrong wards in red), what you ate and wasted healing. Post-match fight report + one-line tip on the results
+  screen (`CombatLog.report`, `CombatLog.tip`). Reaction time = ticks from an enemy's first attack in a new style
+  until your ward matched it (capped at 20).
+- **U1 Proving Grounds** (`data/training.json`, `server/training.gd`): main menu entry, offered once on first
+  launch. Instructor: Drillmaster Varn (original). Six drills judged on the server from the combat log; a hidden
+  "training" mode (no score, no AFK rule); exams are Duels (first to 2 rounds) with both sides on Warlord hybrid
+  kits so ward reading and switching matter. BotBrain gained a data-driven `config` (reaction, prayer accuracy,
+  eat threshold, eat delay, fake switches, spec logic, attack range, damage multiplier) and scripted modes
+  (cycle, flee, freezer, telegraph, passive).
+- **Graduation tuning:** started at the 5-tick eat delay; a skill-0.7 "drill-trained" bot wins 72% (target
+  60-80%, `tools/training_sim.gd`), at reaction 4 ticks, prayer accuracy 0.40, eats at 28 HP, specs rarely, attack
+  range 6. The Instructor's Challenge (fast wards, 35% fake switches, sharp specs) is won 38% of the time.
+- **Drill details:** the specials drill refills spec energy (timing is what's taught); keys 8/9/0 call styles in
+  the reading drill and stay quick-chat elsewhere. XP is split across styles and granted on the first pass only;
+  practice gives no match XP or challenge progress. Passing the Instructor's Challenge stores the "instructor" cape
+  trim in the profile (`cape_trims`); cape-trim visuals are still on the not-built list.
+
+- **U9 balance pass** (`tests/test_balance.gd`, limit and sample size in `rules.json` `balance_check`): every
+  default class (own unlocks at levels 40 and 20) and every bracket kit must win at most 60% of seeded,
+  side-swapped duels against the other classes. Before: Battlemage won 69-83% everywhere. The cause was mostly
+  behavioural: hybrids switch to the style the target isn't warding, single-style classes always hit into a
+  ward, and the Duel's skirmish pack rounded every class to the same food. Data changes: wards block 30% (was
+  40%); plate magic defence 0 (was -12, -1/tier); robes defend 2/4 base vs melee/ranged (was 6/10, +1/+2 per
+  tier); Warrior and Archer main food 26 (was 18); Vanguard ranged kit uses a longbow and its melee kit 34 food.
+  Result: 26-58% for every class. Known gap: at level 8 (own unlocks) Battlemage still wins ~65%; low levels
+  swing a lot between small changes, so they aren't in the check yet. Clan Clash pacing is unchanged (~4.7
+  kills/min). Brackets can now also ban spell, prayer and perk ids.
+- **U9 patch notes** (`data/patch_notes.json`): shown once after an update (not to brand-new players), with a
+  "what changed for my class" filter (custom classes map to the default class of their style); also on the
+  main menu. The newest version must equal `application/config/version` (now 0.6.0); the validator checks it.
+- **U9 meta report:** Barracks -> Meta, from local telemetry: pick rate, win rate and average time-to-kill per
+  class per bracket/playlist, bots included (they're most of the data in single player).
+
+- **U7 The Lab** (`data/mutators.json`, `shared/mutators.gd`): a "lab" playlist on Warlord kits with one mutator
+  per week (same weekly clock as the featured bracket). Mutators only override data the game reads: every
+  rules.json value now goes through `Sim.rule()` (match overrides first), new rules `wards_enabled` and
+  `freeze_mult`, `protect_reduction`, mode keys (via mode overrides) and loadout `food_mult` / forced `kit`. The six
+  mutators are No Wards, Iron Wards (60% block), Spec Frenzy, Frozen Front, Low Rations and One Life. One Life turns
+  any mode into elimination rounds; rounds now work for any number of sides, so FFA One Life is last player
+  standing. After a Lab match: Keep / Change / Drop, saved in the profile (`lab_votes` per week) and the match's
+  telemetry. The Play screen shows this week's mutator and last week's votes from this computer (there's no
+  server to pool votes yet).
+
+- **U8 replays** (`server/replay.gd`, `client/match/replay_link.gd`): a replay is the match setup (seed and Lab
+  mutator resolved) plus every human input and LAN leave by tick; bots replay themselves. Stored with Godot's
+  `var_to_str` (keeps ints and vectors) as `.wfreplay` in `user://replays/`, last 10 kept, Export copies one to
+  `user://exports/`. `Sim.state_hash()` checks a replay reproduces the match (Replays -> Verify; tests replay
+  matches with scripted human input, class changes, a LAN leaver, Lab and private mutators). Playback re-runs the
+  shared simulation with the normal client in spectator view; seeking re-simulates from the start. Practice
+  (Proving Grounds) isn't saved.
+- **U8 spectating:** `Sim.snapshot(-1, true)` shows every fighter's HP, prayer, special energy and overhead.
+  Spectators get a free camera (F, WASD), follow players with [ and ], and an overlay; no inputs are sent. LAN
+  peers can join (or the host can host) as spectators; a private match can be "watch only" (bots play).
+- **U8 private matches:** Play screen -> "Private match with custom rules": bots on/off, watch only, score or
+  rounds limit, time limit, and any number of Lab mutators stacked (later ones win conflicts). The LAN host's
+  matches use the same settings.
+- **U8 tournaments** (`shared/tournament.gd`, LAN screen -> Tournament helper): single or double elimination for
+  2-16 players with byes and a grand-final reset. Results are reported by hand, or the host plays a match as a
+  LAN Duel between the two entrants (matched by lobby name) while everyone else spectates, and the result
+  reports itself. Saved in `user://tournament.json`.
+
+- **U3 fair start** (owner chose tier-cap option **A: no cap**): `shared/matchmaker.gd` groups players within
+  `matchmaking.window` (8) combat levels, widening by 4 every 15 s of waiting up to 40 (`rules.json`). There's no
+  online queue yet, so today it keeps bots inside the window and the LAN lobby warns when its spread is wider.
+  The Play screen shows your matchmaking range; the pre-match countdown shows "Your gear: tier X, lobby average:
+  tier Y" and the lobby's combat levels (tier = average tier of weapon and worn armour; unique items ignored).
+  Ranked and bracket playlists always use bracket kits.
+
+- **U4 ranked** (`data/ranked.json`, `shared/ranked.gd`; owner: Duel + Last Stand, combat level 20, mid reward in
+  8-12 h): Glicko-2 (one match = one rating period; team opponents averaged, RD combined), 5 placement matches
+  that hide the band, bands Stone / Bronze / Silver / Gold / Sapphire / Ruby (3 divisions each) and Warden. The
+  rating lives in the profile now, as plain data a server can take over. Ranked is human vs human only (no bots;
+  LAN lobby with exactly 2 or 6 players), on the week's featured bracket. Each client updates its own rating from
+  the opponents' lobby ratings in the summary.
+- **U4 seasons and rewards:** 8-week seasons from 2026-11-02; at rollover, peak-rank rewards (Silver banner up to
+  the Warden title, each band earns its own and the ones below) and a soft reset halfway to 1500 (RD at least
+  200). Points: 30 per win, 12 per loss -> ~150/hour at a 50% win rate using measured match lengths (Duel ~4.2
+  min, Last Stand ~10.6 min, +1 min queue/loading) -> the mid reward (Season cape trim, 1500 points) takes ~10 h.
+  All rewards are cosmetic (titles, banners, cape trims).
+- **U4 integrity:** matches against the same opponent within 60 minutes count 100%, 100%, 50%, 25%, then 0%
+  (rating and points). Decay: 25 rating per week, down to 1300, only for placed players with fewer than 3
+  matches that week. Leaving a ranked match counts as a loss and feeds the U5 queue cooldown (now enforced).
+  The profile has a random `player_id` (not personal) so repeat opponents can be recognised.
+
+- **U10 autocast per staff:** each weapon remembers the last autocast chosen with it (`Fighter.autocast_by_weapon`,
+  reset each life). Switching back to a staff restores its spell if it's still usable, otherwise the old rule.
+- **U10 gear presets:** V / B / N equip a saved set; Shift+V / B / N save the gear you're wearing. Stored per
+  class in the profile (`presets`). The server intent `equip_set` equips each listed item found in the
+  inventory, weapon first, within the per-tick equip limit, like Z/X/C.
+- **U10 end screen:** the existing "Play again" is the quick rematch (same settings); a new "Change mode"
+  button opens the Play screen. **Visual tick indicator:** an Options toggle that flashes a small square at
+  the top centre every tick, alongside the metronome sound.
+
 ## Not built yet (next steps)
 
-- Modes: Rune Ritual (Search and Destroy) and Hold the Banner. Private matches with custom rules. Ranked.
+- Modes: Rune Ritual (Search and Destroy) and Hold the Banner.
 - Prestige emblems and cape-trim visuals (prestige itself works). Title selection UI.
 - Art: spell particles and the freeze ice shell/shatter (A5), inventory icons rendered from models (A6),
-  jsfxr sounds (A8). HUD draw-call batching. Music, spectator camera, hosted demo (M11).
+  jsfxr sounds (A8). HUD draw-call batching. Music, hosted demo (M11).
 - Dedicated or headless server and internet play (LAN only for now).

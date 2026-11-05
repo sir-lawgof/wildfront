@@ -36,10 +36,13 @@ func test_combat_triangle_from_gear() -> void:
 	for id in DB.sets["plate:1"]:
 		plate += int(DB.item(id)["bonuses"]["def_melee"])
 		plate_mag += int(DB.item(id)["bonuses"]["def_magic"])
+	var hide_mag := 0
 	for id in DB.sets["robe:1"]:
 		robe_mag += int(DB.item(id)["bonuses"]["def_magic"])
+	for id in DB.sets["hide:1"]:
+		hide_mag += int(DB.item(id)["bonuses"]["def_magic"])
 	check(plate > 30, "plate melee defence")
-	check(plate_mag < 0, "plate is weak to magic")
+	check(plate_mag < hide_mag and plate_mag < robe_mag, "plate is the weakest against magic (U9 raised it to 0)")
 	check(robe_mag > plate_mag, "robes beat plate vs magic")
 
 

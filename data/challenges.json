@@ -1,5 +1,5 @@
 {
-  "_doc": "Challenges (GDD 9). Each counts 'event' entries emitted by the sim (shared/sim.gd challenge_events) that match 'filter'. 'sum' adds a field instead of counting. cat: shared (XP split across styles) or a style. Rewards: 'title:X', 'banner:X'.",
+  "_doc": "Challenges (GDD 9). Each counts 'event' entries emitted by the sim (shared/sim.gd challenge_events) that match 'filter'. 'sum' adds a field instead of counting. cat: shared (XP split across styles) or a style. human_only: true = kills on bots don't count (U5). Rewards: 'title:X', 'banner:X'.",
   "challenges": [
     {"id": "first_blood",     "name": "First Blood",     "cat": "shared", "desc": "Get the first kill of a match.",                      "event": "first_blood",   "target": 1,    "xp": 250},
     {"id": "flick_master",    "name": "Flick Master",    "cat": "shared", "desc": "Block 500 hits with the correct Ward prayer.",        "event": "blocked",       "target": 500,  "xp": 2500, "reward": "banner:Flick Master"},

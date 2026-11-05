@@ -1,10 +1,11 @@
 extends SceneTree
 ## Headless balance simulator (GDD M5). Runs bot-vs-bot fights using the shared rules.
-##   godot --headless --path . --script res://tools/balance_sim.gd -- [duels=N] [levels=L] [matches=M] [mode=clan_clash]
+##   godot --headless --path . --script res://tools/balance_sim.gd -- [duels=N] [levels=L] [matches=M] [mode=clan_clash] [brackets=N]
+## brackets=N: N duels per class pair inside each bracket's fixed kits (U2).
 ## Prints duel win rates for every pair of default classes (same tier and one tier apart)
 ## and the pacing of full bot matches (kills per minute, time to win).
 
-var args := {"duels": "40", "levels": "1", "matches": "2", "mode": "clan_clash", "map": "frostgate_ruins"}
+var args := {"duels": "40", "levels": "1", "matches": "2", "mode": "clan_clash", "map": "frostgate_ruins", "brackets": "0"}
 
 
 func _init() -> void:
@@ -18,6 +19,8 @@ func _init() -> void:
 	if n > 0:
 		_duels(n, lv, lv, "same tier")
 		_duels(n, mini(lv + 5, 40), lv, "row class one tier (5 levels) ahead")
+	if int(args["brackets"]) > 0:
+		_bracket_duels(int(args["brackets"]))
 	var m := int(args["matches"])
 	if m > 0:
 		_matches(m, lv)
@@ -47,31 +50,26 @@ func _duels(n: int, lv_a: int, lv_b: int, label: String) -> void:
 		print(row + str(ticks_total / maxi(fights, 1)))
 
 
-## Returns [winner team (0/1/-1), ticks].
 func _duel(a: String, b: String, lv_a: int, lv_b: int, seed: int) -> Array:
-	var core := MatchServerCore.new()
-	core.setup({"mode": "duel", "map": "castle_courtyard", "seed": seed, "pre_ticks": 1, "player": {}})
-	# Replace the random bot classes with the pair under test.
-	var sim := core.sim
-	var fl: Array = sim.fighters.values()
-	var defs: Dictionary = DB.classes["defaults"]
-	for i in range(2):
-		var f: Fighter = fl[i]
-		var lvl := lv_a if f.team == 0 else lv_b
-		var cls := a if f.team == 0 else b
-		var levels := {"melee": lvl, "ranged": lvl, "magic": lvl}
-		f.unlocked = Progression.unlocked_set(levels)
-		f.loadout = Loadout.build(defs[cls], f.unlocked, {"supply": str(sim.mode.get("supply", "full"))})
-		sim.spawn(f)
-		(core.bots[f.id] as BotBrain).skill = 0.7
-	# Start them 6 tiles apart in the courtyard.
-	(fl[0] as Fighter).pos = Vector2i(20, 24)
-	(fl[1] as Fighter).pos = Vector2i(27, 24)
-	for i in range(3000):
-		core.tick()
-		if sim.phase == "over" or sim.rules.round_num > 1 or sim.rules.round_over_ticks > 0:
-			break
-	return [sim.rules.last_round_winner, sim.live_ticks]
+	return Balance.duel(a, b, lv_a, lv_b, seed)
+
+
+## U2/U9: class-vs-class win rates inside each bracket (fixed kits), plus each class's overall win rate.
+func _bracket_duels(n: int) -> void:
+	for bid in Brackets.ids():
+		var m := Balance.matrix(n, str(bid))
+		print("
+== Bracket %s: win rate of row vs column, %d duels per pair ==" % [Brackets.display_name(str(bid)), n])
+		var ids: Array = DB.classes["defaults"].keys()
+		var header := "%-11s" % ""
+		for b in ids:
+			header += "%-11s" % b
+		print(header + "overall")
+		for a in ids:
+			var row := "%-11s" % a
+			for b in ids:
+				row += "%-11s" % ("%d%%" % int(round(100.0 * float(m[a][b]))))
+			print(row + "%d%%" % int(round(100.0 * float(m["_overall"][a]))))
 
 
 func _matches(m: int, lv: int) -> void:

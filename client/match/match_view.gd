@@ -37,6 +37,10 @@ var _prev_prayers: Array = []
 var _popup: PopupMenu
 var _popup_actions: Array = []
 var _done: bool = false
+## U8 spectating / replays: no own fighter; free camera (F) or follow a player ([ and ]).
+var spectator: bool = false
+var free_cam: bool = true
+var follow_id: int = -1
 
 
 func start(cfg: Dictionary, p: Profile, s: Sfx, link: Node = null) -> void:
@@ -77,7 +81,8 @@ func _on_tick(s: Dictionary) -> void:
 	if hud == null:
 		my_id = int(me.get("id", -1))
 		my_team = int(me.get("team", 0))
-		ffa = str(s.get("mode_type", "")) == "ffa"
+		spectator = me.is_empty()
+		ffa = bool(s.get("ffa", str(s.get("mode_type", "")) == "ffa"))
 		world.set_viewer_team(my_team, ffa)
 		hud = Hud.new()
 		add_child(hud)
@@ -87,6 +92,8 @@ func _on_tick(s: Dictionary) -> void:
 		hud.leave_requested.connect(_leave)
 		hud.class_change.connect(_on_class_change)
 		hud.streak_requested.connect(_use_streak)
+		if spectator:
+			hud.chat_line("[color=#0000a0]Spectating.[/color] F free camera (WASD to pan), [ and ] follow players, Tab scores.")
 		var mypos: Vector2i = me.get("pos", Vector2i(map.w / 2, map.h / 2))
 		_cam_focus = WorldView.tile_to_world(mypos)
 		cam_yaw = 0.0 if my_team == 0 else PI
@@ -107,6 +114,8 @@ func _on_tick(s: Dictionary) -> void:
 	_prev_prayers = prs.duplicate()
 	if bool(profile.setting("tick_sound")):
 		sfx.play("tick", 0.35)
+	if bool(profile.setting("tick_visual")):
+		hud.pulse_tick()
 	if str(s.get("phase", "")) == "pre" and int(s.get("phase_ticks", 0)) % 2 == 0 and int(s.get("phase_ticks", 0)) <= 8:
 		sfx.play("countdown", 0.5)
 	hud.update(s)
@@ -117,7 +126,11 @@ func _on_tick(s: Dictionary) -> void:
 		_over_timer = 3.5
 		var w := int(s.get("result", {}).get("winner", -1))
 		var mine := my_team
-		hud.flash_center("VICTORY" if w == mine else ("DRAW" if w < 0 else "DEFEAT"), "Match over", 10.0)
+		var tr: Dictionary = s.get("training", {})
+		if not tr.is_empty() and str(tr.get("kind", "")) == "drill":
+			hud.flash_center("PASSED" if str(tr.get("status", "")) == "passed" else "NOT YET", str(tr.get("note", "")), 10.0)
+		else:
+			hud.flash_center("VICTORY" if w == mine else ("DRAW" if w < 0 else "DEFEAT"), "Match over", 10.0)
 		sfx.play("level_up" if w == mine else "death")
 
 
@@ -344,8 +357,19 @@ func _update_camera(delta: float) -> void:
 		cam_pitch = clampf(cam_pitch + delta * 40.0, 30.0, 85.0)
 	if Input.is_key_pressed(KEY_DOWN):
 		cam_pitch = clampf(cam_pitch - delta * 40.0, 30.0, 85.0)
-	var me: ActorView = actors.get(my_id)
-	if me != null:
+	var me: ActorView = actors.get(my_id if not spectator else follow_id)
+	if spectator and (free_cam or me == null):
+		var pan := Vector3.ZERO
+		if Input.is_key_pressed(KEY_W):
+			pan += Vector3(-sin(cam_yaw), 0, -cos(cam_yaw))
+		if Input.is_key_pressed(KEY_S):
+			pan += Vector3(sin(cam_yaw), 0, cos(cam_yaw))
+		if Input.is_key_pressed(KEY_A):
+			pan += Vector3(-cos(cam_yaw), 0, sin(cam_yaw))
+		if Input.is_key_pressed(KEY_D):
+			pan += Vector3(cos(cam_yaw), 0, -sin(cam_yaw))
+		_cam_focus += pan * delta * 14.0
+	elif me != null:
 		_cam_focus = _cam_focus.lerp(me.position, clampf(delta * 8.0, 0.0, 1.0))
 	var pr := deg_to_rad(cam_pitch)
 	var off := Vector3(sin(cam_yaw) * cos(pr), sin(pr), cos(cam_yaw) * cos(pr)) * cam_dist
@@ -358,7 +382,24 @@ func _update_camera(delta: float) -> void:
 # ================================================================ input
 
 func _send(intent: Dictionary) -> void:
+	if spectator:
+		return
 	server.submit(intent)
+
+
+## Spectator: cycle the followed player (dir +1 / -1); free camera when none.
+func _cycle_follow(dir: int) -> void:
+	var ids: Array = []
+	for f in snap.get("fighters", []):
+		if str(f.get("npc", "")) == "" and not bool(f.get("dead", false)):
+			ids.append(int(f["id"]))
+	if ids.is_empty():
+		return
+	var i := ids.find(follow_id)
+	i = (i + dir) % ids.size() if i >= 0 else (0 if dir > 0 else ids.size() - 1)
+	follow_id = int(ids[posmod(i, ids.size())])
+	free_cam = false
+	hud.chat_line("Following %s." % hud.names.get(follow_id, "?"))
 
 
 func _pick_actor(mouse: Vector2) -> ActorView:
@@ -421,6 +462,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		if not k.pressed or k.echo:
 			return
+		if k.shift_pressed and [KEY_V, KEY_B, KEY_N].has(k.keycode):
+			_save_preset(k.keycode)
+			return
 		_hotkey(k.keycode)
 
 
@@ -470,7 +514,7 @@ func _right_click(pos: Vector2) -> void:
 	_popup_actions.clear()
 	var a := _pick_actor(pos)
 	if a != null and a.fid != my_id:
-		var nm := "%s (level-%d)" % [a.pub.get("name", "?"), int(a.pub.get("cl", 1))]
+		var nm := "%s%s (level-%d)" % [a.pub.get("name", "?"), " [BOT]" if bool(a.pub.get("bot", false)) else "", int(a.pub.get("cl", 1))]
 		if _is_enemy(a):
 			_popup.add_item("Attack " + nm, _popup_actions.size())
 			_popup_actions.append({"type": "attack", "target": a.fid})
@@ -510,7 +554,7 @@ func _update_hover() -> void:
 	elif spell_target != "":
 		txt = "Cast %s -> %s" % [DB.spells[spell_target]["name"], a.pub.get("name", "") if _is_enemy(a) else "..."]
 	elif a != null and a.fid != my_id:
-		var nm := "%s (level-%d)" % [a.pub.get("name", "?"), int(a.pub.get("cl", 1))]
+		var nm := "%s%s (level-%d)" % [a.pub.get("name", "?"), " [BOT]" if bool(a.pub.get("bot", false)) else "", int(a.pub.get("cl", 1))]
 		txt = ("Attack " + nm) if _is_enemy(a) else nm
 	hud.set_hover(txt, mouse)
 
@@ -553,8 +597,48 @@ func _offensive_set() -> Array:
 	return []
 
 
+# ---- U10 gear presets: V/B/N equip, Shift+V/B/N save the gear you're wearing. Stored per class in the profile.
+
+func _presets() -> Dictionary:
+	if not profile.data.has("presets"):
+		profile.data["presets"] = {}
+	var cls := str(profile.data.get("selected_class", "warrior"))
+	if not (profile.data["presets"] as Dictionary).has(cls):
+		profile.data["presets"][cls] = {}
+	return profile.data["presets"][cls]
+
+
+func _preset_key(code: int) -> String:
+	return OS.get_keycode_string(code)
+
+
+func _save_preset(code: int) -> void:
+	var eq: Dictionary = snap.get("me", {}).get("equipment", {})
+	var ids: Array = []
+	for slot in eq:
+		if str(eq[slot]) != "":
+			ids.append(str(eq[slot]))
+	_presets()[_preset_key(code)] = ids
+	profile.save()
+	hud.chat_line("Gear preset %s saved (%d items)." % [_preset_key(code), ids.size()])
+
+
 func _hotkey(code: int) -> void:
 	var me: Dictionary = snap.get("me", {})
+	if spectator:
+		match code:
+			KEY_F:
+				free_cam = not free_cam
+				hud.chat_line("Free camera on." if free_cam else "Following players.")
+				if not free_cam and follow_id == -1:
+					_cycle_follow(1)
+			KEY_BRACKETRIGHT:
+				_cycle_follow(1)
+			KEY_BRACKETLEFT:
+				_cycle_follow(-1)
+			KEY_ESCAPE:
+				_leave()
+		return
 	match code:
 		KEY_ESCAPE:
 			if spell_target != "" or streak_target != "":
@@ -610,6 +694,12 @@ func _hotkey(code: int) -> void:
 				_send({"type": "switch_set", "style": {KEY_Z: "melee", KEY_X: "ranged", KEY_C: "magic"}[code]})
 			else:
 				hud.chat_line("Switch hotkeys are off (Options).")
+		KEY_V, KEY_B, KEY_N:
+			var ids: Array = _presets().get(_preset_key(code), [])
+			if ids.is_empty():
+				hud.chat_line("No gear preset here yet: equip a set and press Shift+%s to save it." % OS.get_keycode_string(code))
+			else:
+				_send({"type": "equip_set", "ids": ids})
 		KEY_R:
 			_send({"type": "run"})
 		KEY_T:
@@ -622,12 +712,13 @@ func _hotkey(code: int) -> void:
 			_use_streak("meteor_strike")
 		KEY_7:
 			_use_streak("guardian")
-		KEY_8:
-			_send({"type": "chat", "text": "Freeze them!"})
-		KEY_9:
-			_send({"type": "chat", "text": "Spec now!"})
-		KEY_0:
-			_send({"type": "chat", "text": "Falling back!"})
+		KEY_8, KEY_9, KEY_0:
+			if not (snap.get("training", {}) as Dictionary).is_empty():
+				# Proving Grounds "Reading the enemy": call the style instead of quick chat.
+				_send({"type": "callout", "style": {KEY_8: "melee", KEY_9: "ranged", KEY_0: "magic"}[code]})
+				hud.chat_line("You call: %s" % {KEY_8: "Melee!", KEY_9: "Ranged!", KEY_0: "Magic!"}[code])
+			else:
+				_send({"type": "chat", "text": {KEY_8: "Freeze them!", KEY_9: "Spec now!", KEY_0: "Falling back!"}[code]})
 		KEY_SPACE:
 			_send({"type": "ready"})
 

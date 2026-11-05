@@ -3,12 +3,12 @@
   "defaults": {
     "warrior": {
       "name": "Warrior", "style": "melee", "primary": "best:scimitar", "secondary": [], "armour": "best:plate", "switches": [],
-      "spellbook": "elemental", "main_food": 18, "perks": ["extra_rations", "rebuke", "unbound"],
+      "spellbook": "elemental", "main_food": 26, "perks": ["extra_rations", "rebuke", "unbound"],
       "desc": "Melee tank. Scimitar and plate, lots of food."
     },
     "archer": {
       "name": "Archer", "style": "ranged", "primary": "best:shortbow", "secondary": [], "armour": "best:hide", "switches": [],
-      "spellbook": "elemental", "main_food": 18, "perks": ["extra_rations", "rebuke", "unbound"],
+      "spellbook": "elemental", "main_food": 26, "perks": ["extra_rations", "rebuke", "unbound"],
       "desc": "Ranged kiter. Shortbow and hides, strong against mages."
     },
     "battlemage": {

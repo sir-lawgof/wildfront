@@ -37,9 +37,11 @@ func test_hit_delays() -> void:
 	eq(Combat.hit_delay("magic", 10), 4, "magic far")
 
 
-func test_protection_cuts_40_percent() -> void:
-	eq(Combat.protect_damage(20), 12, "20 -> 12")
+## Ward strength is data (prayers.json protect_reduction; 0.30 since the U9 balance pass).
+func test_protection_cuts_by_protect_reduction() -> void:
+	eq(Combat.protect_damage(20), int(floor(20 * (1.0 - DB.protect_reduction))), "20 reduced by protect_reduction")
 	eq(Combat.protect_damage(1), 0, "1 -> 0")
+	check(DB.protect_reduction > 0.0 and DB.protect_reduction < 1.0, "a ward blocks part of the hit")
 
 
 func test_fighter_rolls_use_gear() -> void:

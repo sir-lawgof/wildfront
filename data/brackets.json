@@ -1,0 +1,46 @@
+{
+  "_doc": "Brackets (U2, docs/COMMUNITY_UPDATES.md). A bracket gives everyone the same fixed starter kit for their class's style, so gear never decides the fight. kit_levels: style levels whose unlocks the kits are drawn from ('all' = every unlock). stats: combat stat overrides (others stay at rules.base_level). allowed_armour: armour classes allowed (empty = all); armour_fallback replaces a disallowed set. banned: item, spell, prayer or perk ids, or 'key:value' item tags (e.g. 'unique:true', 'weapon_type:stone_maul'). spellbook: 'any' or 'elemental'. kits: class definitions (same format as classes.json) per kit key: melee, ranged, magic, hybrid. rotation + rotation_epoch: the weekly featured bracket (used by ranked).",
+  "rotation_epoch": "2026-01-05T00:00:00",
+  "rotation": ["warlord", "skirmisher", "vanguard"],
+  "brackets": {
+    "skirmisher": {
+      "name": "Skirmisher", "desc": "Defence 1, no plate. Hit hard, die fast.",
+      "kit_levels": {"melee": 40, "ranged": 40, "magic": 40},
+      "stats": {"defence": 1},
+      "allowed_armour": ["hide", "robe"], "armour_fallback": "hide",
+      "banned": [], "spellbook": "elemental",
+      "kits": {
+        "melee":  {"name": "Skirmisher Melee",  "style": "melee",  "primary": "best:scimitar", "secondary": [], "armour": "best:hide", "switches": [], "spellbook": "elemental", "main_food": 26, "perks": ["extra_rations", "rebuke", "unbound"]},
+        "ranged": {"name": "Skirmisher Ranged", "style": "ranged", "primary": "best:shortbow", "secondary": [], "armour": "best:hide", "switches": [], "spellbook": "elemental", "main_food": 26, "perks": ["extra_rations", "rebuke", "unbound"]},
+        "magic":  {"name": "Skirmisher Magic",  "style": "magic",  "primary": "best:staff", "secondary": ["best:scimitar"], "armour": "best:robe", "switches": [], "spellbook": "elemental", "main_food": 14, "perks": ["extra_rations", "rebuke", "unbound"]},
+        "hybrid": {"name": "Skirmisher Hybrid", "style": "magic",  "primary": "best:staff", "secondary": ["best:shortbow", "best:scimitar"], "armour": "best:robe", "switches": ["best:hide:body", "best:hide:legs"], "spellbook": "elemental", "main_food": 10, "perks": ["extra_rations", "rebuke", "unbound"]}
+      }
+    },
+    "vanguard": {
+      "name": "Vanguard", "desc": "Mid Defence, mid-tier kit. No special-attack weapons.",
+      "kit_levels": {"melee": 22, "ranged": 22, "magic": 22},
+      "stats": {"defence": 70},
+      "allowed_armour": [], "armour_fallback": "",
+      "banned": ["unique:true"], "spellbook": "elemental",
+      "kits": {
+        "melee":  {"name": "Vanguard Melee",  "style": "melee",  "primary": "best:scimitar", "secondary": [], "armour": "best:plate", "switches": [], "spellbook": "elemental", "main_food": 34, "perks": ["extra_rations", "rebuke", "unbound"]},
+        "ranged": {"name": "Vanguard Ranged", "style": "ranged", "primary": "best:longbow", "secondary": [], "armour": "best:hide", "switches": [], "spellbook": "elemental", "main_food": 26, "perks": ["extra_rations", "rebuke", "unbound"]},
+        "magic":  {"name": "Vanguard Magic",  "style": "magic",  "primary": "best:staff", "secondary": ["best:scimitar"], "armour": "best:robe", "switches": [], "spellbook": "elemental", "main_food": 14, "perks": ["extra_rations", "rebuke", "unbound"]},
+        "hybrid": {"name": "Vanguard Hybrid", "style": "magic",  "primary": "best:staff", "secondary": ["best:shortbow", "best:scimitar"], "armour": "best:robe", "switches": ["best:hide:body", "best:hide:legs", "best:plate:body", "best:plate:legs"], "spellbook": "elemental", "main_food": 10, "perks": ["extra_rations", "rebuke", "unbound"]}
+      }
+    },
+    "warlord": {
+      "name": "Warlord", "desc": "Everything maxed: every unlock, full stats. The fairest test of skill.",
+      "kit_levels": "all",
+      "stats": {},
+      "allowed_armour": [], "armour_fallback": "",
+      "banned": [], "spellbook": "any",
+      "kits": {
+        "melee":  {"name": "Warlord Melee",  "style": "melee",  "primary": "best:scimitar", "secondary": [], "armour": "best:plate", "switches": [], "spellbook": "elemental", "main_food": 26, "perks": ["extra_rations", "rebuke", "unbound"]},
+        "ranged": {"name": "Warlord Ranged", "style": "ranged", "primary": "best:shortbow", "secondary": [], "armour": "best:hide", "switches": [], "spellbook": "elemental", "main_food": 26, "perks": ["extra_rations", "rebuke", "unbound"]},
+        "magic":  {"name": "Warlord Magic",  "style": "magic",  "primary": "best:staff", "secondary": ["best:scimitar"], "armour": "best:robe", "switches": [], "spellbook": "elemental", "main_food": 14, "perks": ["extra_rations", "rebuke", "unbound"]},
+        "hybrid": {"name": "Warlord Hybrid", "style": "magic",  "primary": "best:staff", "secondary": ["best:shortbow", "best:scimitar"], "armour": "best:robe", "switches": ["best:hide:body", "best:hide:legs", "best:plate:body", "best:plate:legs"], "spellbook": "elemental", "main_food": 10, "perks": ["extra_rations", "rebuke", "unbound"]}
+      }
+    }
+  }
+}

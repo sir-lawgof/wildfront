@@ -1,0 +1,35 @@
+{
+  "_doc": "Ranked and seasons (U4, docs/COMMUNITY_UPDATES.md). Duel and Last Stand on the week's featured bracket kits; unlocks at combat level 20 (unlocks.json feature:ranked). Glicko-2 hidden rating with a visible band and division; placement matches hide the band. Seasons last 'weeks' from 'epoch' with a soft reset. Points are earned every match (wins and losses) toward cosmetic rewards; peak rank gives end-of-season rewards. minutes_per_match includes ~1 min of queue and loading and drives the shown points per hour; the mid reward should take an average player 8-12 hours (owner decision).",
+  "modes": ["duel", "last_stand"],
+  "glicko": {"rating": 1500, "rd": 350, "vol": 0.06, "tau": 0.5, "min_rd": 50, "max_rd": 350},
+  "placement_matches": 5,
+  "bands": [
+    {"name": "Stone",    "from": 0},
+    {"name": "Bronze",   "from": 1300},
+    {"name": "Silver",   "from": 1420},
+    {"name": "Gold",     "from": 1540},
+    {"name": "Sapphire", "from": 1660},
+    {"name": "Ruby",     "from": 1780},
+    {"name": "Warden",   "from": 1900, "divisions": 1}
+  ],
+  "divisions": 3,
+  "season": {"epoch": "2026-11-02T00:00:00", "weeks": 8, "soft_reset": 0.5, "reset_rd": 200},
+  "points": {"win": 30, "loss": 12},
+  "minutes_per_match": {"duel": 5.2, "last_stand": 11.6},
+  "points_rewards": [
+    {"points": 300,  "reward": "banner:season_recruit",  "name": "Season banner"},
+    {"points": 800,  "reward": "title:Contender",        "name": "Contender title"},
+    {"points": 1500, "reward": "cape_trim:season",       "name": "Season cape trim", "mid": true},
+    {"points": 2500, "reward": "banner:season_veteran",  "name": "Veteran banner"},
+    {"points": 4000, "reward": "title:Warbound",         "name": "Warbound title"}
+  ],
+  "peak_rewards": {
+    "Silver":   "banner:silver_season",
+    "Gold":     "cape_trim:gold_season",
+    "Sapphire": "cape_trim:sapphire_season",
+    "Ruby":     "cape_trim:ruby_season",
+    "Warden":   "title:Warden"
+  },
+  "integrity": {"repeat_window_min": 60, "repeat_mults": [1.0, 1.0, 0.5, 0.25, 0.0]},
+  "decay": {"min_matches_per_week": 3, "rating_per_week": 25, "floor": 1300}
+}

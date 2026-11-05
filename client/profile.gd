@@ -29,6 +29,7 @@ func _defaults() -> void:
 		"selected_class": "warrior",
 		"settings": {
 			"tick_sound": false, "switch_hotkeys": true, "minimap_size": 200, "colorblind": false,
+			"tick_visual": false, "telemetry": true,
 			"short_countdown": false, "volume": 0.7, "bot_skill": 0.55, "show_tile_grid": true, "placeholder_map_art": false,
 		},
 		"stats": {"matches": 0, "wins": 0, "kills": 0, "deaths": 0, "assists": 0, "damage": 0},
@@ -47,6 +48,51 @@ func _defaults() -> void:
 			for k2 in d[k]:
 				if not (data[k] as Dictionary).has(k2):
 					data[k][k2] = d[k][k2]
+	# U4: a random, non-personal id (for the win-trading guard) and this season's ranked state.
+	if not data.has("player_id"):
+		data["player_id"] = "%08x%08x" % [randi(), randi()]
+	if not data.has("ranked"):
+		data["ranked"] = Ranked.new_state(Ranked.season_of(int(Time.get_unix_time_from_system())))
+
+
+## Playtest build (U11): `-- --playtest` on the command line or project setting wildfront/playtest_build.
+static func playtest_build() -> bool:
+	return OS.get_cmdline_user_args().has("--playtest") or bool(ProjectSettings.get_setting("wildfront/playtest_build", false))
+
+
+## Adds a cosmetic reward ("title:X", "banner:X", "cape_trim:X"). Returns a label, or "" if already owned.
+func grant_cosmetic(reward: String) -> String:
+	var parts := reward.split(":", true, 1)
+	if parts.size() < 2:
+		return ""
+	var key: String = {"title": "titles", "banner": "banners", "cape_trim": "cape_trims"}.get(parts[0], "")
+	if key == "":
+		return ""
+	if not data.has(key):
+		data[key] = []
+	if (data[key] as Array).has(parts[1]):
+		return ""
+	data[key].append(parts[1])
+	return "%s: %s" % [{"title": "Title", "banner": "Banner", "cape_trim": "Cape trim"}[parts[0]], parts[1].replace("_", " ").capitalize()]
+
+
+## U4: season rollover (end-of-season rewards, soft reset) and weekly decay. Returns lines to show the player.
+func ranked_housekeeping() -> Array:
+	var now := int(Time.get_unix_time_from_system())
+	var st: Dictionary = data["ranked"]
+	var out: Array = []
+	var lost := Ranked.apply_decay(st, now)
+	if lost > 0.0:
+		out.append("Ranked: inactive last week, rating decayed (play %d matches a week to avoid it)." % int(DB.ranked["decay"]["min_matches_per_week"]))
+	var rolled := Ranked.roll_season(st, now)
+	if str(rolled["previous_peak"]) != "":
+		out.append("New ranked season! Last season's peak: %s." % str(rolled["previous_peak"]))
+	for r in rolled["rewards"]:
+		var l := grant_cosmetic(str(r))
+		if l != "":
+			out.append("Season reward - " + l)
+	save()
+	return out
 
 
 func save() -> void:

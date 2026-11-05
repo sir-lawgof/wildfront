@@ -1,6 +1,6 @@
 {
   "_doc": "Prayers (GDD 7). groups: activating a prayer switches off any active prayer sharing a group. drain: OSRS-style drain effect; resistance = 60 + 2 * prayer bonus. Multipliers apply to the base level before the +8 / stance.",
-  "protect_reduction": 0.40,
+  "protect_reduction": 0.30,
   "prayers": [
     {"id": "ward_blades",  "name": "Ward of Blades",  "track": "combat", "level": 1,  "groups": ["overhead"], "drain": 12, "protect": "melee"},
     {"id": "ward_arrows",  "name": "Ward of Arrows",  "track": "combat", "level": 1,  "groups": ["overhead"], "drain": 12, "protect": "ranged"},

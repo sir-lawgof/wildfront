@@ -71,7 +71,7 @@ func test_two_handed_moves_shield_to_inventory() -> void:
 	check(a.count_item("bronze_scimitar") == 1 and a.count_item("bronze_kiteshield") == 1, "both went to inventory")
 
 
-func test_protection_prayer_blocks_40() -> void:
+func test_protection_prayer_blocks_damage() -> void:
 	var sim := make_duel()
 	_put_adjacent(sim)
 	var a: Fighter = sim.fighters[1]
@@ -80,7 +80,8 @@ func test_protection_prayer_blocks_40() -> void:
 	sim.step()
 	check(b.has_prayer("ward_blades"), "prayer on")
 	var h := sim.make_attack(a, b, "melee", {"fixed_damage": 10, "force_hit": true})
-	eq(int(h["dmg"]), 6, "10 -> 6 through Ward of Blades")
+	eq(int(h["dmg"]), Combat.protect_damage(10), "10 reduced through Ward of Blades")
+	check(int(h["dmg"]) < 10, "the ward blocks something")
 	var h2 := sim.make_attack(a, b, "ranged", {"fixed_damage": 10, "force_hit": true})
 	eq(int(h2["dmg"]), 10, "wrong ward doesn't help")
 

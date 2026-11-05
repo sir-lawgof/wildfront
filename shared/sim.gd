@@ -30,13 +30,20 @@ var reveal_until: Dictionary = {}  ## team -> tick
 var result: Dictionary = {}
 var first_blood: bool = false
 var _next_id: int = 1
+var clog := CombatLog.new()        ## fight log for death recaps, fight reports and telemetry (U6, U11)
+var training_status: Dictionary = {} ## Proving Grounds progress for the HUD (set by server/training.gd)
+var rule_overrides: Dictionary = {}  ## The Lab mutators (U7): rules.json keys overridden for this match
 
 
 func setup(p_mode_id: String, map_id: String, p_options: Dictionary = {}) -> void:
 	DB.ensure_loaded()
 	options = p_options
 	mode_id = p_mode_id
-	mode = DB.modes["modes"][mode_id]
+	mode = (DB.modes["modes"][mode_id] as Dictionary).duplicate(true)
+	rule_overrides = options.get("rule_overrides", {})
+	var over: Dictionary = options.get("mode_overrides", {})
+	for k in over:
+		mode[k] = over[k]
 	map = MapGrid.from_json(DB.maps[map_id])
 	rules = ModeRules.new(self, mode)
 	if options.has("seed"):
@@ -61,6 +68,7 @@ func add_fighter(p_name: String, team: int, is_bot: bool, loadout: Dictionary, u
 	f.name = p_name
 	f.team = team
 	f.is_bot = is_bot
+	f.last_input_tick = tick
 	f.loadout = loadout
 	f.unlocked = unlocked
 	if not style_levels.is_empty():
@@ -95,6 +103,13 @@ func alive_players() -> Array:
 	return out
 
 
+## A data/rules.json value for this match: Lab mutator overrides first, then the data file.
+func rule(key: String, default: Variant = null) -> Variant:
+	if rule_overrides.has(key):
+		return rule_overrides[key]
+	return DB.rule(key, default)
+
+
 # =============================================================== the tick
 
 func step() -> void:
@@ -106,6 +121,8 @@ func step() -> void:
 		phase_ticks -= 1
 		if phase_ticks <= 0:
 			phase = "live"
+			for f in fighters.values():
+				(f as Fighter).last_input_tick = tick
 			add_event({"type": "phase", "phase": "live"})
 	else:
 		live_ticks += 1
@@ -114,6 +131,7 @@ func step() -> void:
 	intents = []
 	for it in batch:
 		_apply_intent(int(it[0]), it[1])
+	_check_afk()
 	var order: Array = fighters.values()
 	# 2. eating, drinking and gear equips
 	for f in order:
@@ -121,6 +139,7 @@ func step() -> void:
 	# 3. prayer toggles and drain
 	for f in order:
 		_process_prayers(f)
+		_log_ward(f)
 	# 4. movement
 	for f in order:
 		_move(f)
@@ -137,9 +156,44 @@ func step() -> void:
 	_respawns()
 	_expire_npcs()
 	rules.tick()
+	for f in fighters.values():
+		_log_ward(f)
+
+
+func _log_ward(f: Fighter) -> void:
+	if f.npc_kind != "":
+		return
+	var w := f.protect_style() if f.is_alive() else ""
+	if w != f.logged_ward:
+		f.logged_ward = w
+		clog.add({"k": "ward", "tick": tick, "f": f.id, "ward": w})
 
 
 # =============================================================== 1. intents
+
+## AFK rule (data: afk_warn_s, afk_takeover_s): warn, flag, then emit afk_takeover for the server to hand
+## the fighter to a bot. The idle clock only runs while the player is alive in a live phase.
+func _check_afk() -> void:
+	if bool(options.get("no_afk", false)):
+		return
+	var warn := DB.ticks(float(rule("afk_warn_s", 60)))
+	var takeover := DB.ticks(float(rule("afk_takeover_s", 90)))
+	for o in fighters.values():
+		var f: Fighter = o
+		if f.is_bot or f.npc_kind != "" or f.left_match:
+			continue
+		if phase != "live" or not f.is_alive():
+			f.last_input_tick = tick
+			continue
+		var idle := tick - f.last_input_tick
+		if idle >= takeover:
+			f.left_match = true
+			add_event({"type": "afk_takeover", "id": f.id})
+			msg(f.id, "You were idle too long. A bot has taken over and the match counts as left.")
+		elif idle >= warn and not f.afk:
+			f.afk = true
+			add_event({"type": "afk_warning", "id": f.id})
+			msg(f.id, "Are you still there? Move or act within %d s or a bot takes over." % int(round((takeover - idle) * 0.6)))
 
 func _apply_intent(fid: int, it: Dictionary) -> void:
 	var f := get_fighter(fid)
@@ -154,12 +208,21 @@ func _apply_intent(fid: int, it: Dictionary) -> void:
 	if kind == "chat":
 		add_event({"type": "chat", "from": fid, "name": f.name, "team": f.team, "text": str(it.get("text", "")).left(80)})
 		return
+	if kind == "callout":
+		var cs := str(it.get("style", ""))
+		if DB.STYLES.has(cs):
+			clog.add({"k": "callout", "tick": tick, "f": fid, "style": cs})
+			add_event({"type": "callout", "id": fid, "style": cs, "to": fid})
+		return
 	if kind == "ready":
 		if phase == "pre" and live_ticks == 0 and not f.is_bot:
 			phase_ticks = mini(phase_ticks, 2)
 		return
 	if not f.is_alive():
 		return
+	if not f.is_bot:
+		f.last_input_tick = tick
+		f.afk = false
 	match kind:
 		"move":
 			var tile := Vector2i(int(it["x"]), int(it["y"]))
@@ -189,8 +252,10 @@ func _apply_intent(fid: int, it: Dictionary) -> void:
 				if f.weapon_style() == "magic":
 					f.autocast = sid
 					if sid != "":
+						f.autocast_by_weapon[str(f.equipment["weapon"])] = sid
+					if sid != "":
 						msg(fid, "Autocast: " + str(DB.spells[sid]["name"]))
-		"equip", "use", "unequip", "spec", "switch_set":
+		"equip", "use", "unequip", "spec", "switch_set", "equip_set":
 			f.action_queue.append(it)
 		"prayer":
 			f.prayer_queue.append(str(it.get("id", "")))
@@ -217,7 +282,9 @@ func _apply_intent(fid: int, it: Dictionary) -> void:
 				f.rebuke_cooldown = int(DB.perks["rebuke"].get("cooldown", 50))
 				add_event({"type": "fx", "id": fid, "fx": "rebuke"})
 		"trap":
-			if f.has_perk("snare_trap") and f.trap_available:
+			if phase != "live":
+				msg(fid, "You can't set a trap before the fight starts.")
+			elif f.has_perk("snare_trap") and f.trap_available:
 				f.trap_available = false
 				traps.append({"pos": f.pos, "team": f.team, "owner": fid})
 				msg(fid, "You set a snare trap.")
@@ -258,12 +325,12 @@ func _process_actions(f: Fighter) -> void:
 	if not f.is_alive():
 		f.action_queue.clear()
 		return
-	var limit := int(DB.rule("quick_hands_equips", 10)) if f.has_perk("quick_hands") else int(DB.rule("max_equips_per_tick", 8))
+	var limit := int(rule("quick_hands_equips", 10)) if f.has_perk("quick_hands") else int(rule("max_equips_per_tick", 8))
 	var equips := 0
 	var carry: Array = []
 	for a in f.action_queue:
 		var kind := str(a.get("type", ""))
-		if (kind == "equip" or kind == "unequip" or kind == "switch_set") and equips >= limit:
+		if (kind == "equip" or kind == "unequip" or kind == "switch_set" or kind == "equip_set") and equips >= limit:
 			carry.append(a)
 			continue
 		match kind:
@@ -285,6 +352,8 @@ func _process_actions(f: Fighter) -> void:
 				equips += 1
 			"switch_set":
 				equips += _switch_set(f, str(a.get("style", "")), limit - equips)
+			"equip_set":
+				equips += _equip_set(f, a.get("ids", []), limit - equips)
 			"spec":
 				_toggle_spec(f)
 	f.action_queue = carry
@@ -295,8 +364,9 @@ func _equip(f: Fighter, idx: int) -> bool:
 	var iid := str(e["id"])
 	var it := DB.item(iid)
 	var slot := str(it["slot"])
-	if f.loadout.get("pure", false) and str(it.get("armour_class", "")) == "plate":
-		msg(f.id, "Pure Brawl: plate armour is not allowed.")
+	var allowed_armour: Array = f.loadout.get("allowed_armour", [])
+	if not allowed_armour.is_empty() and str(it.get("armour_class", "")) != "" and not allowed_armour.has(str(it["armour_class"])):
+		msg(f.id, "This bracket doesn't allow %s armour." % str(it["armour_class"]))
 		return false
 	var remove: Array = [slot]
 	if bool(it.get("two_handed", false)):
@@ -344,7 +414,10 @@ func _unequip(f: Fighter, slot: String) -> void:
 func _on_weapon_changed(f: Fighter) -> void:
 	f.spec_armed = false
 	if f.weapon_style() == "magic":
-		if f.autocast == "" or not _spell_usable(f, f.autocast, false):
+		var remembered := str(f.autocast_by_weapon.get(str(f.equipment["weapon"]), ""))
+		if remembered != "" and _spell_usable(f, remembered, false):
+			f.autocast = remembered  # U10: each staff keeps its own autocast
+		elif f.autocast == "" or not _spell_usable(f, f.autocast, false):
 			f.autocast = Loadout.best_damage_spell(f.spellbook if bool(f.weapon().get("forbidden", false)) else "elemental", f.unlocked)
 
 
@@ -371,6 +444,27 @@ func _switch_set(f: Fighter, style: String, budget: int) -> int:
 	return n
 
 
+## Loadout preset (U10): equip each listed item that's in the inventory, weapon first, within the budget.
+func _equip_set(f: Fighter, ids: Array, budget: int) -> int:
+	var n := 0
+	var order: Array = []
+	for id in ids:
+		if str(DB.item(str(id)).get("slot", "")) == "weapon":
+			order.push_front(str(id))
+		else:
+			order.append(str(id))
+	for id in order:
+		if n >= budget:
+			break
+		for i in range(28):
+			var e = f.inventory[i]
+			if e != null and str(e["id"]) == id:
+				if _equip(f, i):
+					n += 1
+				break
+	return n
+
+
 func _toggle_spec(f: Fighter) -> void:
 	var w := f.weapon()
 	if not w.has("spec"):
@@ -388,6 +482,7 @@ func _toggle_spec(f: Fighter) -> void:
 		if t != null and t.is_alive() and t.spawn_shield <= 0 and _in_attack_position(f, t, "melee"):
 			f.spec_energy -= cost
 			Specials.perform(self, f, t, "instant_maul", "melee")
+			clog.add({"k": "spec", "tick": tick, "f": f.id})
 			add_event({"type": "attack", "id": f.id, "target": t.id, "style": "melee", "spec": true, "weapon": str(w.get("id", ""))})
 			f.attack_timer = int(w.get("speed", 7))
 			f.spawn_shield = 0
@@ -421,6 +516,8 @@ func _consume(f: Fighter, idx: int) -> void:
 				return
 			f.potion_timer = 3
 	var verb := "eat"
+	var hp_before := f.hp
+	var nominal := int(it.get("heal", 0))
 	if it.has("heal"):
 		f.hp = mini(f.max_hp, f.hp + int(it["heal"]))
 		f.attack_timer += int(it.get("attack_delay", 0))
@@ -429,6 +526,7 @@ func _consume(f: Fighter, idx: int) -> void:
 			verb = "drink"
 			var b: Dictionary = DB.consumables_meta["brew"]
 			var heal := int(floor(f.max_hp * float(b["heal_pct"]))) + int(b["heal_flat"])
+			nominal += heal
 			f.hp = mini(f.max_hp + int(b["max_overheal"]), f.hp + heal)
 			var bd := int(f.base_levels["defence"])
 			f.levels["defence"] = mini(bd + int(floor(bd * float(b["def_pct"]))) + int(b["def_flat"]), int(f.levels["defence"]) + int(floor(bd * float(b["def_pct"]))) + int(b["def_flat"]))
@@ -442,7 +540,7 @@ func _consume(f: Fighter, idx: int) -> void:
 				var base := int(f.base_levels[s])
 				if int(f.levels[s]) < base:
 					f.levels[s] = mini(base, int(f.levels[s]) + int(floor(base * float(r["stat_pct"]))) + int(r["stat_flat"]))
-			f.prayer_points = mini(int(DB.rule("max_prayer", 99)), f.prayer_points + int(floor(99 * float(r["prayer_pct"]))) + int(r["prayer_flat"]))
+			f.prayer_points = mini(int(rule("max_prayer", 99)), f.prayer_points + int(floor(99 * float(r["prayer_pct"]))) + int(r["prayer_flat"]))
 		"antidote":
 			verb = "drink"
 			f.poison_hits_left = 0
@@ -453,6 +551,8 @@ func _consume(f: Fighter, idx: int) -> void:
 	if int(e["doses"]) <= 0:
 		f.inventory[idx] = null
 	add_event({"type": "consume", "id": f.id, "item": str(it["id"])})
+	if nominal > 0:
+		clog.add({"k": "eat", "tick": tick, "f": f.id, "item": str(it["id"]), "heal": nominal, "wasted": maxi(0, nominal - (f.hp - hp_before))})
 	msg(f.id, "You %s the %s." % [verb, str(it["name"]).to_lower()])
 
 
@@ -474,6 +574,9 @@ func _process_prayers(f: Fighter) -> void:
 			continue
 		if f.prayer_points <= 0:
 			msg(f.id, "You need to recharge your prayer.")
+			continue
+		if pr.has("protect") and not bool(rule("wards_enabled", true)):
+			msg(f.id, "Wards are disabled in this match.")
 			continue
 		if pr.has("protect") and f.ward_block_ticks > 0:
 			msg(f.id, "Your wards have been severed!")
@@ -579,7 +682,7 @@ func _move(f: Fighter) -> void:
 		if _check_trap(f):
 			break
 	if moved >= 2:
-		var drain := float(DB.rule("run_drain_per_tick", 0.67))
+		var drain := float(rule("run_drain_per_tick", 0.67))
 		if f.has_perk("fleet_foot"):
 			drain *= 0.5
 		var body := DB.item(str(f.equipment["body"]))
@@ -594,15 +697,15 @@ func _move(f: Fighter) -> void:
 
 
 func _regen_run(f: Fighter) -> void:
-	f.run_energy = minf(100.0, f.run_energy + float(DB.rule("run_regen_per_tick", 0.45)))
+	f.run_energy = minf(100.0, f.run_energy + float(rule("run_regen_per_tick", 0.45)))
 
 
 func _check_trap(f: Fighter) -> bool:
 	for i in range(traps.size()):
 		var tr: Dictionary = traps[i]
-		if tr["pos"] == f.pos and int(tr["team"]) != f.team:
+		if tr["pos"] == f.pos and int(tr["team"]) != f.team and f.spawn_shield <= 0:
 			traps.remove_at(i)
-			if _freeze(f, 8):
+			if _freeze(f, 8, int(tr["owner"])):
 				msg(f.id, "You step on a snare trap!")
 				var owner := get_fighter(int(tr["owner"]))
 				if owner != null:
@@ -613,10 +716,12 @@ func _check_trap(f: Fighter) -> bool:
 	return false
 
 
-func _freeze(t: Fighter, ticks: int) -> bool:
-	if t.frozen_ticks > 0 or t.freeze_immune_ticks > 0 or ticks <= 0:
+func _freeze(t: Fighter, ticks: int, src: int = -1) -> bool:
+	if t.frozen_ticks > 0 or t.freeze_immune_ticks > 0 or ticks <= 0 or t.spawn_shield > 0:
 		return false
+	ticks = int(round(ticks * float(rule("freeze_mult", 1.0))))
 	t.frozen_ticks = ticks
+	clog.add({"k": "freeze", "tick": tick, "a": src, "d": t.id, "ticks": ticks})
 	t.path.clear()
 	add_event({"type": "fx", "id": t.id, "fx": "freeze"})
 	return true
@@ -632,6 +737,10 @@ func _attack(f: Fighter) -> void:
 	var t := get_fighter(f.target_id)
 	if t == null or not t.is_alive() or not rules.can_attack(f, t):
 		f.target_id = -1
+		return
+	if not rules.may_engage(f, t):
+		f.target_id = -1
+		msg(f.id, "%s is already in a fight." % t.name if t.engaged_with != f.id and t.engaged_with != -1 else "You're already in a fight.")
 		return
 	if t.spawn_shield > 0 or f.attack_timer > 0:
 		return
@@ -658,6 +767,7 @@ func _perform_attack(f: Fighter, t: Fighter) -> void:
 		f.spec_armed = false
 		var spec_style := str(w.get("style", "melee"))
 		Specials.perform(self, f, t, str(w["spec"]["id"]), spec_style)
+		clog.add({"k": "spec", "tick": tick, "f": f.id})
 		style = spec_style
 		add_event({"type": "fx", "id": f.id, "fx": "spec", "spec": str(w["spec"]["id"])})
 		if str(w["spec"]["id"]) == "armour_break":
@@ -701,6 +811,7 @@ func _perform_attack(f: Fighter, t: Fighter) -> void:
 	f.last_attack_style = style
 	t.last_attacked_by = f.id
 	t.last_attacked_tick = tick
+	rules.on_attack(f, t)
 	f.spawn_shield = 0
 	add_event({"type": "attack", "id": f.id, "target": t.id, "style": style, "spell": spell if style == "magic" else "", "weapon": str(w.get("id", ""))})
 	if t.target_id == -1 and t.auto_retaliate and not t.is_bot and t.path.is_empty():
@@ -749,7 +860,7 @@ func make_attack(f: Fighter, t: Fighter, style: String, opts: Dictionary = {}) -
 	var chance := Combat.hit_chance(att, dfn)
 	var accurate := bool(opts.get("force_hit", false)) or rng.randf() < chance
 	var max_hit := int(opts.get("max_override", Combat.fighter_max_hit(f, style, spell)))
-	max_hit = int(floor(max_hit * float(opts.get("dmg_mult", 1.0))))
+	max_hit = int(floor(max_hit * float(opts.get("dmg_mult", 1.0)) * f.dmg_out_mult))
 	var dmg := 0
 	if opts.has("fixed_damage"):
 		dmg = int(opts["fixed_damage"])
@@ -758,10 +869,11 @@ func make_attack(f: Fighter, t: Fighter, style: String, opts: Dictionary = {}) -
 	if opts.has("min_damage"):
 		dmg = maxi(dmg, int(opts["min_damage"]))
 		accurate = true
-	var protected := t.protect_style() == style and style != "typeless"
+	var ward := t.protect_style()
+	var protected := ward == style and style != "typeless"
 	var raw := dmg
 	if protected and dmg > 0:
-		dmg = Combat.protect_damage(dmg)
+		dmg = Combat.protect_damage(dmg, float(rule("protect_reduction", DB.protect_reduction)))
 	if protected:
 		t.challenge_events.append({"type": "blocked"})
 	var dist := MapGrid.chebyshev(f.pos, t.pos)
@@ -769,7 +881,7 @@ func make_attack(f: Fighter, t: Fighter, style: String, opts: Dictionary = {}) -
 	var h := {
 		"land": tick + delay, "attacker": f.id, "target": t.id, "life": t.life_id, "dmg": dmg, "raw": raw,
 		"style": style, "accurate": accurate, "max_hit": max_hit, "spec": str(opts.get("spec", "")),
-		"spell": spell, "effects": opts.get("effects", {}), "protected": protected,
+		"spell": spell, "effects": opts.get("effects", {}), "protected": protected, "ward": ward,
 		"weapon": str(f.weapon().get("name", "")) if spell == "" else str(DB.spells[spell]["name"]),
 		"weapon_type": str(f.weapon().get("weapon_type", "")), "dist": dist,
 	}
@@ -811,6 +923,8 @@ func _apply_hit(h: Dictionary) -> void:
 	var style := str(h["style"])
 	if style == "magic" and not bool(h["accurate"]):
 		add_event({"type": "splash", "target": t.id})
+		clog.add({"k": "hit", "tick": tick, "a": int(h["attacker"]), "d": t.id, "style": style, "weapon": str(h["weapon"]),
+			"spec": str(h["spec"]) != "", "ward": str(h.get("ward", "")), "dmg": 0, "splash": true})
 		return
 	var dmg := int(h["dmg"])
 	if t.rebuke_armed and dmg > 0 and a != null and a.is_alive():
@@ -819,6 +933,8 @@ func _apply_hit(h: Dictionary) -> void:
 		add_event({"type": "fx", "id": t.id, "fx": "rebuke_hit"})
 		deal_damage(a, refl, t.id, "typeless", {})
 		t.challenge_events.append({"type": "rebuke_reflect"})
+	clog.add({"k": "hit", "tick": tick, "a": int(h["attacker"]), "d": t.id, "style": style, "weapon": str(h["weapon"]),
+		"spec": str(h["spec"]) != "", "ward": str(h.get("ward", "")), "dmg": clampi(dmg, 0, t.hp) if t.spawn_shield <= 0 else 0})
 	deal_damage(t, dmg, int(h["attacker"]), style, h)
 	if a != null and dmg > 0 and int(h["raw"]) >= int(h["max_hit"]) and int(h["max_hit"]) > 0:
 		a.challenge_events.append({"type": "max_hit", "weapon_type": h["weapon_type"]})
@@ -828,7 +944,7 @@ func _apply_hit(h: Dictionary) -> void:
 	if bool(h["accurate"]) and not fx.is_empty():
 		if fx.has("freeze"):
 			var ft := int(fx["freeze"])
-			if _freeze(t, ft) and a != null:
+			if _freeze(t, ft, a.id if a != null else -1) and a != null:
 				a.challenge_events.append({"type": "freeze", "target": t.id, "spec": str(h["spec"])})
 		if fx.has("poison") and not t.has_perk("antivenom") and t.poison_hits_left <= 0:
 			var p: Dictionary = DB.consumables_meta.get("poison", {})
@@ -873,8 +989,12 @@ func _apply_hit(h: Dictionary) -> void:
 func deal_damage(t: Fighter, dmg: int, src_id: int, style: String, info: Dictionary) -> void:
 	if not t.is_alive():
 		return
+	if t.spawn_shield > 0 and src_id != t.id:
+		return  # protected state: nothing hurts a spawn-shielded player (traps, meteors, Reckoning, poison)
 	dmg = clampi(dmg, 0, t.hp)
 	t.hp -= dmg
+	if dmg > 0 and not info.has("land"):
+		clog.add({"k": "dmg", "tick": tick, "a": src_id, "d": t.id, "style": style, "weapon": str(info.get("weapon", style.capitalize())), "dmg": dmg})
 	var kind := "hit" if dmg > 0 else "block"
 	if style == "poison":
 		kind = "poison"
@@ -898,20 +1018,28 @@ func deal_damage(t: Fighter, dmg: int, src_id: int, style: String, info: Diction
 		t.last_hit_spec = str(info.get("spec", "")) != ""
 		t.last_hit_streak = bool(info.get("streak", false))
 		t.last_hit_weapon = str(info.get("weapon", style.capitalize()))
+		if dmg > 0:
+			var cid := src_id
+			var via_streak := bool(info.get("streak", false))
+			if src.npc_kind == "guardian":
+				cid = src.owner_id
+				via_streak = true
+			t.hit_log.append([tick, cid, dmg])
+			t.last_hit_from[cid] = {"style": credit_style, "spec": str(info.get("spec", "")) != "", "streak": via_streak, "weapon": t.last_hit_weapon}
 	t.damage_taken_life += dmg
 	if t.hp <= 0:
 		t.dying = true
 		return
-	if t.has_prayer("last_rites") and t.hp < int(DB.rule("last_rites_threshold", 10)):
+	if t.has_prayer("last_rites") and t.hp < int(rule("last_rites_threshold", 10)):
 		var heal := int(floor(99 * 0.25))
 		t.hp = mini(t.max_hp, t.hp + heal)
 		t.prayer_points = 0
 		t.active_prayers.clear()
 		add_event({"type": "splat", "target": t.id, "amount": heal, "kind": "heal"})
 		add_event({"type": "fx", "id": t.id, "fx": "last_rites"})
-	if t.has_perk("second_wind") and not t.second_wind_used and t.hp < int(DB.rule("second_wind_threshold", 10)):
+	if t.has_perk("second_wind") and not t.second_wind_used and t.hp < int(rule("second_wind_threshold", 10)):
 		t.second_wind_used = true
-		t.second_wind_ticks = int(DB.rule("second_wind_ticks", 5))
+		t.second_wind_ticks = int(rule("second_wind_ticks", 5))
 		msg(t.id, "Second Wind!")
 
 
@@ -966,6 +1094,18 @@ func _kill(v: Fighter) -> void:
 	if killer != null and killer.npc_kind == "guardian":
 		credit = get_fighter(killer.owner_id)
 		streak_kill = true
+	var kstyle := v.last_hit_style
+	var kspec := v.last_hit_spec
+	var kweapon := v.last_hit_weapon
+	if v.npc_kind == "":
+		var cid := kill_credit_id(v)
+		if cid != -1 and v.last_hit_from.has(cid) and get_fighter(cid) != null:
+			credit = get_fighter(cid)
+			var lh: Dictionary = v.last_hit_from[cid]
+			kstyle = str(lh["style"])
+			kspec = bool(lh["spec"])
+			streak_kill = bool(lh["streak"])
+			kweapon = str(lh["weapon"])
 	if v.npc_kind == "guardian":
 		add_event({"type": "kill", "killer": credit.id if credit != null else -1, "victim": v.id, "weapon": v.last_hit_weapon, "style": v.last_hit_style, "npc": true})
 		if credit != null:
@@ -974,19 +1114,27 @@ func _kill(v: Fighter) -> void:
 		fighters.erase(v.id)
 		return
 	v.deaths += 1
+	var food_left := 0
+	for e in v.inventory:
+		if e != null and DB.item(str(e["id"])).has("heal"):
+			food_left += 1
+	clog.add({"k": "death", "tick": tick, "v": v.id, "killer": credit.id if credit != null else -1,
+		"ttk": tick - int(v.first_hit_from.get(credit.id, tick)) if credit != null else 0, "spec_left": v.spec_energy, "food_left": food_left})
+	v.last_recap = death_recap(v.id, tick)
 	if had_reckoning:
 		for o in fighters.values():
 			var of: Fighter = o
 			if of.is_alive() and rules.can_attack(v, of) and MapGrid.chebyshev(of.pos, v.pos) <= 1:
 				deal_damage(of, rng.randi_range(0, int(floor(99 * 0.25))), v.id, "typeless", {"weapon": "Reckoning"})
 		add_event({"type": "fx", "id": v.id, "fx": "reckoning"})
-	var kstyle := v.last_hit_style
-	if credit != null and credit != v:
+	if credit != null and credit != v and v.afk:
+		rules.on_kill(credit, v)  # AFK victims still score, but give no kill XP, streaks or challenge progress
+	elif credit != null and credit != v:
 		credit.kills += 1
 		if not DB.STYLES.has(kstyle):
 			kstyle = credit.weapon_style()
 		credit.kill_styles[kstyle] = int(credit.kill_styles.get(kstyle, 0)) + 1
-		if v.last_hit_spec:
+		if kspec:
 			credit.spec_kills[kstyle] = int(credit.spec_kills.get(kstyle, 0)) + 1
 		if credit.last_killer_id == v.id:
 			credit.revenge_kills[kstyle] = int(credit.revenge_kills.get(kstyle, 0)) + 1
@@ -998,8 +1146,8 @@ func _kill(v: Fighter) -> void:
 			credit.tribrid_done = true
 			credit.challenge_events.append({"type": "tribrid"})
 		credit.challenge_events.append({
-			"type": "kill", "style": kstyle, "spec": v.last_hit_spec, "weapon_type": kwt, "life_type_kills": int(credit.life_weapon_kills[kwt]),
-			"victim_frozen": v.frozen_ticks > 0, "dist": MapGrid.chebyshev(credit.pos, v.pos), "hp": credit.hp,
+			"type": "kill", "style": kstyle, "spec": kspec, "weapon_type": kwt, "life_type_kills": int(credit.life_weapon_kills[kwt]),
+			"victim_frozen": v.frozen_ticks > 0, "victim_bot": v.is_bot, "dist": MapGrid.chebyshev(credit.pos, v.pos), "hp": credit.hp,
 			"victim_rebuke": v.rebuke_armed, "first_hit_tick": _first_hit_tick(v, credit.id), "tick": tick,
 			"damage_taken_life": credit.damage_taken_life, "streak_kill": streak_kill,
 		})
@@ -1030,8 +1178,52 @@ func _kill(v: Fighter) -> void:
 			src.assist_styles[best_style] = int(src.assist_styles.get(best_style, 0)) + 1
 	v.last_killer_id = credit.id if credit != null else -1
 	v.streak = 0
-	add_event({"type": "kill", "killer": credit.id if credit != null else -1, "victim": v.id, "weapon": v.last_hit_weapon, "style": kstyle})
+	add_event({"type": "kill", "killer": credit.id if credit != null else -1, "victim": v.id, "weapon": kweapon, "style": kstyle})
 	rules.on_death(v)
+
+
+## Kill credit (all modes, docs/DECISIONS.md): most damage in the last kill_credit_window_ticks; ties go to
+## the latest hitter; if nobody hit inside the window, the latest hitter. Guardian hits count for their owner.
+func kill_credit_id(v: Fighter) -> int:
+	if v.hit_log.is_empty():
+		return -1
+	var window := int(rule("kill_credit_window_ticks", 50))
+	var totals := {}
+	var latest := {}
+	for e in v.hit_log:
+		var h: Array = e
+		if int(h[0]) > tick - window:
+			totals[int(h[1])] = int(totals.get(int(h[1]), 0)) + int(h[2])
+			latest[int(h[1])] = int(h[0])
+	var last_id := int((v.hit_log[v.hit_log.size() - 1] as Array)[1])
+	if totals.is_empty():
+		return last_id
+	var best := -1
+	for id in totals:
+		if best == -1 or int(totals[id]) > int(totals[best]) or (int(totals[id]) == int(totals[best]) and int(latest[id]) > int(latest[best])):
+			best = int(id)
+	return best
+
+
+## U6: what killed this player, limited to things they could see (hits on them, their own ward and food),
+## with attacker names resolved here so the client needs nothing else. Last 12 hits, last 8 eats.
+func death_recap(fid: int, death_tick: int) -> Dictionary:
+	var r := clog.recap(fid, death_tick)
+	var hits: Array = r["hits"]
+	hits = hits.slice(maxi(0, hits.size() - 12))
+	for h in hits:
+		var a := get_fighter(int(h["attacker"]))
+		h["name"] = a.name if a != null else str(h["weapon"])
+		h["bot"] = a.is_bot if a != null else false
+		h["ago"] = death_tick - int(h["tick"])
+	var eats: Array = r["eats"]
+	eats = eats.slice(maxi(0, eats.size() - 8))
+	for e in eats:
+		e["ago"] = death_tick - int(e["tick"])
+		e["name"] = str(DB.item(str(e["item"])).get("name", e["item"]))
+	var killer := get_fighter(int(r["killer"]))
+	return {"hits": hits, "eats": eats, "wasted_heal": r["wasted_heal"], "killer": killer.name if killer != null else "",
+		"wrong_wards": hits.filter(func(h): return bool(h["wrong_ward"])).size(), "tick": death_tick}
 
 
 func _first_hit_tick(v: Fighter, src: int) -> int:
@@ -1119,7 +1311,7 @@ func _timers(f: Fighter) -> void:
 		f.freeze_immune_ticks -= 1
 	# Hitpoints regen (and brew overheal decay).
 	f.hp_regen_timer += 1
-	var hp_int := int(DB.rule("hp_regen_interval", 100))
+	var hp_int := int(rule("hp_regen_interval", 100))
 	if f.has_prayer("mending"):
 		hp_int /= 2
 	if f.hp_regen_timer >= hp_int:
@@ -1130,12 +1322,12 @@ func _timers(f: Fighter) -> void:
 			f.hp -= 1
 	# Special energy.
 	f.spec_regen_timer += 1
-	var sp_int := int(DB.rule("spec_regen_interval", 50))
+	var sp_int := int(rule("spec_regen_interval", 50))
 	if f.has_perk("steady_hand"):
 		sp_int /= 2
 	if f.spec_regen_timer >= sp_int:
 		f.spec_regen_timer = 0
-		f.spec_energy = mini(100, f.spec_energy + int(DB.rule("spec_regen_amount", 10)))
+		f.spec_energy = mini(100, f.spec_energy + int(rule("spec_regen_amount", 10)))
 	# Stat boosts and drains drift back to base.
 	f.boost_timer += 1
 	var b_int := int(DB.consumables_meta.get("boost_decay_ticks", 100))
@@ -1152,7 +1344,7 @@ func _timers(f: Fighter) -> void:
 				f.levels[s] = cur + 1
 	if f.has_prayer("devotion"):
 		f.devotion_timer += 1
-		if f.devotion_timer >= int(DB.rule("devotion_interval", 30)):
+		if f.devotion_timer >= int(rule("devotion_interval", 30)):
 			f.devotion_timer = 0
 			f.prayer_points = mini(99, f.prayer_points + 1)
 	# Poison.
@@ -1176,7 +1368,7 @@ func _timers(f: Fighter) -> void:
 		f.bleed = keep
 	if f.second_wind_ticks > 0 and f.is_alive():
 		f.second_wind_ticks -= 1
-		var h := int(DB.rule("second_wind_heal", 15)) / int(DB.rule("second_wind_ticks", 5))
+		var h := int(rule("second_wind_heal", 15)) / int(rule("second_wind_ticks", 5))
 		f.hp = mini(f.max_hp, f.hp + h)
 		add_event({"type": "splat", "target": f.id, "amount": h, "kind": "heal"})
 	if f.dying:
@@ -1204,6 +1396,7 @@ func _expire_npcs() -> void:
 
 ## (Re)spawns a fighter with a fresh copy of its class loadout.
 func spawn(f: Fighter) -> void:
+	clog.add({"k": "spawn", "tick": tick, "f": f.id})
 	if not f.next_loadout.is_empty():
 		f.loadout = f.next_loadout
 		f.next_loadout = {}
@@ -1219,13 +1412,18 @@ func spawn(f: Fighter) -> void:
 		f.inventory.append(null)
 	f.spellbook = str(lo.get("spellbook", "elemental"))
 	f.autocast = str(lo.get("autocast", ""))
+	f.autocast_by_weapon.clear()
+	if f.autocast != "":
+		f.autocast_by_weapon[str(f.equipment["weapon"])] = f.autocast
 	f.perks = (lo.get("perks", []) as Array).duplicate()
 	f.recalc_bonuses()
-	var base := int(DB.rule("base_level", 99))
+	var base := int(rule("base_level", 99))
 	for s in Fighter.STATS:
 		f.base_levels[s] = base
-	if bool(lo.get("pure", false)):
-		f.base_levels["defence"] = 1
+	var stat_over: Dictionary = lo.get("stats", {})
+	for s in stat_over:
+		if f.base_levels.has(s):
+			f.base_levels[s] = int(stat_over[s])
 	for s in Fighter.STATS:
 		f.levels[s] = int(f.base_levels[s])
 	if bool(lo.get("combat_boosts", false)):
@@ -1234,9 +1432,9 @@ func spawn(f: Fighter) -> void:
 			if boosts.has(s):
 				var b: Array = boosts[s]
 				f.levels[s] = int(f.base_levels[s]) + int(b[0]) + int(floor(int(f.base_levels[s]) * float(b[1])))
-	f.max_hp = int(DB.rule("max_hp", 99))
+	f.max_hp = int(rule("max_hp", 99))
 	f.hp = f.max_hp
-	f.prayer_points = int(DB.rule("max_prayer", 99))
+	f.prayer_points = int(rule("max_prayer", 99))
 	f.prayer_drain_counter = 0.0
 	f.spec_energy = 100
 	f.spec_armed = false
@@ -1271,6 +1469,8 @@ func spawn(f: Fighter) -> void:
 	f.damage_from.clear()
 	f.damage_from_style.clear()
 	f.first_hit_from.clear()
+	f.hit_log.clear()
+	f.last_hit_from.clear()
 	f.damage_taken_life = 0
 	f.kills_this_life_styles.clear()
 	f.life_weapon_kills.clear()
@@ -1297,12 +1497,22 @@ func team_won(team: int) -> bool:
 
 # =============================================================== 8. snapshot
 
-func _pub(f: Fighter, viewer: Fighter) -> Dictionary:
+## U8: a hash of everything that matters in the match state. A replay must reproduce it exactly.
+func state_hash() -> int:
+	var parts: Array = [tick, phase, live_ticks, scores, int(result.get("winner", -99)), pending_hits.size(), objectives, traps, meteors.size()]
+	for o in fighters.values():
+		var f: Fighter = o
+		parts.append([f.id, f.team, f.pos, f.hp, f.prayer_points, f.spec_energy, f.active_prayers, f.equipment, f.inventory,
+			f.kills, f.deaths, f.assists, f.damage_dealt, f.frozen_ticks, f.target_id, int(round(f.run_energy * 1000.0)), f.dead, f.levels])
+	return hash(var_to_str(parts))
+
+
+func _pub(f: Fighter, viewer: Fighter, spectator: bool = false) -> Dictionary:
 	var ovh := f.overhead()
 	if viewer != null and viewer.id != f.id and rules.can_attack(viewer, f):
-		var rng_view := int(DB.rule("overhead_view_range", 15))
+		var rng_view := int(rule("overhead_view_range", 15))
 		if viewer.has_perk("eagle_sight"):
-			rng_view += int(DB.rule("eagle_sight_bonus", 5))
+			rng_view += int(rule("eagle_sight_bonus", 5))
 		if MapGrid.chebyshev(viewer.pos, f.pos) > rng_view:
 			ovh = ""
 	return {
@@ -1313,14 +1523,17 @@ func _pub(f: Fighter, viewer: Fighter) -> Dictionary:
 		"kills": f.kills, "deaths": f.deaths, "assists": f.assists, "damage": f.damage_dealt,
 		"obj": f.objective_score, "poisoned": f.poison_hits_left > 0, "target": f.target_id,
 		"kit": str(f.loadout.get("kits", {}).get(str(f.weapon().get("weapon_type", "")), "")),
+		"prayer": f.prayer_points if spectator else -1, "spec": f.spec_energy if spectator else -1,
+		"gear_tier": Matchmaker.gear_tier(f.equipment),
 	}
 
 
-func snapshot(viewer_id: int) -> Dictionary:
-	var viewer := get_fighter(viewer_id)
+## spectator: no viewer; every overhead, HP, prayer and special energy is visible (U8 spectating and replays).
+func snapshot(viewer_id: int, spectator: bool = false) -> Dictionary:
+	var viewer: Fighter = null if spectator else get_fighter(viewer_id)
 	var fl: Array = []
 	for f in fighters.values():
-		fl.append(_pub(f, viewer))
+		fl.append(_pub(f, viewer, spectator))
 	var me := {}
 	if viewer != null:
 		var f := viewer
@@ -1333,6 +1546,7 @@ func snapshot(viewer_id: int) -> Dictionary:
 			"bonuses": f.bonuses.duplicate(), "perks": f.perks.duplicate(), "streak": f.streak,
 			"streak_rewards": f.streak_rewards.duplicate(), "frozen": f.frozen_ticks, "immune": f.freeze_immune_ticks,
 			"respawn": f.respawn_ticks, "dead": f.dead or f.out_of_round, "rebuke_cd": f.rebuke_cooldown,
+			"recap": f.last_recap if (f.dead or f.out_of_round) else {},
 			"rebuke_armed": f.rebuke_armed, "trap": f.trap_available, "rune_casts": f.rune_casts,
 			"target": f.target_id, "ward_block": f.ward_block_ticks, "team": f.team, "pos": f.pos,
 			"unlocked_prayers": _unlocked_list(f, DB.prayer_order), "unlocked_spells": _unlocked_list(f, DB.spell_order),
@@ -1340,21 +1554,21 @@ func snapshot(viewer_id: int) -> Dictionary:
 		}
 	var vis_traps: Array = []
 	for tr in traps:
-		if viewer != null and int(tr["team"]) == viewer.team:
+		if spectator or (viewer != null and int(tr["team"]) == viewer.team):
 			vis_traps.append(tr["pos"])
 	var ev: Array = []
 	for e in events:
-		if e.has("to") and int(e["to"]) != viewer_id:
+		if e.has("to") and (spectator or int(e["to"]) != viewer_id):
 			continue
 		ev.append(e)
 	return {
 		"tick": tick, "phase": phase, "phase_ticks": phase_ticks, "time_left": rules.time_left_ticks(),
-		"mode": mode_id, "mode_type": rules.type, "scores": scores.duplicate(), "score_limit": rules.score_limit,
+		"mode": mode_id, "mode_type": rules.type, "ffa": rules.is_ffa(), "scores": scores.duplicate(), "score_limit": rules.score_limit,
 		"round": rules.round_num, "rounds_to_win": rules.rounds_to_win,
-		"fighters": fl, "me": me, "objectives": objectives.duplicate(true),
+		"fighters": fl, "me": me, "objectives": objectives.duplicate(true), "training": training_status,
 		"meteors": meteors.duplicate(true), "traps": vis_traps,
 		"reveal": viewer != null and int(reveal_until.get(viewer.team, -1)) > tick,
-		"events": ev, "result": result,
+		"events": ev, "result": result, "spectator": spectator,
 	}
 
 

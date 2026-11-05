@@ -11,8 +11,13 @@
     },
     "ffa": {
       "name": "Free-for-All", "type": "ffa", "teams": 0, "team_size": 8, "score_limit": 20, "time_limit_s": 600,
-      "respawn": true, "streaks": true, "supply": "skirmish", "maps": ["frostgate_ruins", "ember_outpost", "mirewatch_keep"],
-      "desc": "Everyone for themselves. First to 20 kills."
+      "respawn": true, "streaks": true, "supply": "skirmish", "engagement_ticks": 16, "maps": ["frostgate_ruins", "ember_outpost", "mirewatch_keep"],
+      "desc": "Everyone for themselves. First to 20 kills. No third-partying: once two players fight, others can't join in for 16 ticks."
+    },
+    "ffa_brawl": {
+      "name": "Brawl", "type": "ffa", "teams": 0, "team_size": 8, "score_limit": 20, "time_limit_s": 600,
+      "respawn": true, "streaks": true, "supply": "skirmish", "engagement_ticks": 0, "maps": ["frostgate_ruins", "ember_outpost", "mirewatch_keep"],
+      "desc": "Free-for-All with no third-party protection. Anyone can jump into any fight."
     },
     "obelisks": {
       "name": "Obelisks", "type": "domination", "teams": 2, "team_size": 5, "score_limit": 200, "time_limit_s": 600,
@@ -25,15 +30,23 @@
       "respawn": false, "streaks": false, "supply": "full", "maps": ["castle_courtyard"],
       "desc": "3v3, one life per round. Wipe the other team. Best of 7."
     },
+    "training": {
+      "name": "Proving Grounds", "type": "training", "teams": 2, "team_size": 1, "score_limit": 0, "time_limit_s": 300,
+      "respawn": true, "streaks": false, "supply": "full", "maps": ["castle_courtyard"], "hidden": true,
+      "desc": "Practice drills and the training dummy (U1). Not matchmade."
+    },
     "duel": {
       "name": "Duel", "type": "elimination", "teams": 2, "team_size": 1, "rounds_to_win": 3, "round_time_s": 240,
       "respawn": false, "streaks": false, "supply": "skirmish", "maps": ["castle_courtyard"],
       "desc": "1v1 arena. First to 3 kills."
     }
   },
+  "_playlists_doc": "standard = your own unlocks. Every other playlist plays one bracket from data/brackets.json (fixed kits, U2). XP still counts.",
   "playlists": {
     "standard": {"name": "Standard", "desc": "Your own unlocked gear."},
-    "even_ground": {"name": "Even Ground", "desc": "Everyone gets the same top-tier kit. XP still counts."},
-    "pure_brawl": {"name": "Pure Brawl", "desc": "Defence fixed at 1. No plate."}
+    "warlord": {"name": "Warlord", "bracket": "warlord", "desc": "Everyone gets the same maxed kit (was Even Ground)."},
+    "skirmisher": {"name": "Skirmisher", "bracket": "skirmisher", "desc": "Defence 1, no plate, fixed kits (was Pure Brawl)."},
+    "vanguard": {"name": "Vanguard", "bracket": "vanguard", "desc": "Defence 70, mid-tier fixed kits, no special-attack weapons."},
+    "lab": {"name": "The Lab", "bracket": "warlord", "lab": true, "desc": "Experimental: Warlord kits plus this week's mutator. Vote after each match."}
   }
 }

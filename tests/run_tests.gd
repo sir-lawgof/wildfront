@@ -12,6 +12,18 @@ const SUITES := [
 	"res://tests/test_sim.gd",
 	"res://tests/test_challenges.gd",
 	"res://tests/test_environment.gd",
+	"res://tests/test_fairness.gd",
+	"res://tests/test_qol.gd",
+	"res://tests/test_telemetry.gd",
+	"res://tests/test_brackets.gd",
+	"res://tests/test_recap.gd",
+	"res://tests/test_training.gd",
+	"res://tests/test_lab.gd",
+	"res://tests/test_replay.gd",
+	"res://tests/test_tournament.gd",
+	"res://tests/test_matchmaking.gd",
+	"res://tests/test_ranked.gd",
+	"res://tests/test_balance.gd",
 ]
 
 

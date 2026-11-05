@@ -16,6 +16,7 @@ var server: MatchServer             ## host only
 var link: RemoteLink                ## client only
 var my_info: Dictionary = {}
 var _summaries_sent: bool = false
+var spectators: Array = []          ## host only: peers watching this match (U8)
 
 
 func _ready() -> void:
@@ -88,7 +89,10 @@ func _on_peer_connected(_id: int) -> void:
 func _on_peer_disconnected(id: int) -> void:
 	if is_host:
 		lobby.erase(id)
+		spectators.erase(id)
 		_broadcast_lobby()
+		if server != null:
+			server.core.peer_left(id)
 
 
 func _on_connected() -> void:
@@ -115,7 +119,7 @@ func register(info: Dictionary) -> void:
 func _lobby_list() -> Array:
 	var out: Array = []
 	for pid in lobby:
-		out.append({"peer": pid, "name": str(lobby[pid].get("name", "?")), "cl": Progression.combat_level(
+		out.append({"peer": pid, "name": str(lobby[pid].get("name", "?")), "spectator": bool(lobby[pid].get("spectator", false)), "cl": Progression.combat_level(
 			int(lobby[pid].get("levels", {}).get("melee", 1)), int(lobby[pid].get("levels", {}).get("ranged", 1)), int(lobby[pid].get("levels", {}).get("magic", 1)))})
 	return out
 
@@ -134,16 +138,22 @@ func lobby_update(list: Array) -> void:
 
 # ---------------------------------------------------------------- match (host)
 
+## cfg.only_peers (U8 tournaments): only these lobby peers play; everyone else spectates.
 func start_match(cfg: Dictionary) -> void:
 	if not is_host:
 		return
 	cfg = cfg.duplicate()
 	var players: Array = []
+	spectators.clear()
 	var order: Array = lobby.keys()
 	order.sort()
+	var only: Array = cfg.get("only_peers", [])
 	for pid in order:
 		var p: Dictionary = (lobby[pid] as Dictionary).duplicate()
 		p["peer"] = pid
+		if bool(p.get("spectator", false)) or (not only.is_empty() and not only.has(pid)):
+			spectators.append(pid)
+			continue
 		players.append(p)
 	cfg["players"] = players
 	cfg.erase("player")
@@ -168,11 +178,22 @@ func _on_server_tick() -> void:
 			client_match_started.rpc_id(int(peer), server.cfg, snap)
 		else:
 			recv_snapshot.rpc_id(int(peer), snap)
+	for peer in spectators:
+		if int(peer) == 1:
+			continue
+		var ss := core.sim.snapshot(-1, true)
+		if core.sim.tick == 0:
+			client_match_started.rpc_id(int(peer), server.cfg, ss)
+		else:
+			recv_snapshot.rpc_id(int(peer), ss)
 	if core.sim.phase == "over" and not _summaries_sent:
 		_summaries_sent = true
 		for peer in core.peer_to_fid:
 			if int(peer) != 1:
 				recv_summary.rpc_id(int(peer), core.summary(false, int(core.peer_to_fid[peer])))
+		for peer in spectators:
+			if int(peer) != 1:
+				recv_summary.rpc_id(int(peer), core.summary(false, -1, true))
 
 
 @rpc("any_peer", "reliable")
@@ -201,6 +222,8 @@ func host_leave() -> void:
 	var fid := int(server.core.peer_to_fid.get(sender, -1))
 	if fid != -1:
 		recv_summary.rpc_id(sender, server.core.summary(true, fid))
+	elif spectators.has(sender):
+		recv_summary.rpc_id(sender, server.core.summary(false, -1, true))
 
 
 # ---------------------------------------------------------------- match (client)

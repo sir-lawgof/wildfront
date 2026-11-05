@@ -30,4 +30,6 @@ static func make_duel(class_a: String = "warrior", class_b: String = "warrior", 
 	sim.add_fighter("A", 0, false, Loadout.build(DB.classes["defaults"][class_a], unl, {"supply": "full"}), unl)
 	sim.add_fighter("B", 1, false, Loadout.build(DB.classes["defaults"][class_b], unl, {"supply": "full"}), unl)
 	sim.step()  # leave pre-match
+	for f in sim.fighters.values():
+		(f as Fighter).spawn_shield = 0  # raw-mechanic tests; protected states are covered in test_fairness.gd
 	return sim

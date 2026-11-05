@@ -28,8 +28,13 @@ func start(p_cfg: Dictionary) -> void:
 	tick_len = float(DB.rule("tick_seconds", 0.6))
 	running = true
 	_acc = 0.0
-	ticked.emit(core.sim.snapshot(core.player_id))
+	ticked.emit(_snap())
 	tick_completed.emit()
+
+
+## The local view: the player's own, or a spectator view when nobody local is playing (watch-only match).
+func _snap() -> Dictionary:
+	return core.sim.snapshot(core.player_id, core.player_id == -1)
 
 
 func _process(delta: float) -> void:
@@ -41,7 +46,7 @@ func _process(delta: float) -> void:
 		_acc -= tick_len
 		guard += 1
 		core.tick()
-		ticked.emit(core.sim.snapshot(core.player_id))
+		ticked.emit(_snap())
 		tick_completed.emit()
 		if core.sim.phase == "over":
 			running = false
@@ -63,5 +68,7 @@ func change_class(class_def: Dictionary, levels: Dictionary) -> void:
 
 func request_summary(forfeit: bool) -> void:
 	running = false
-	var s := core.summary(forfeit)
+	var s := core.summary(forfeit, -1, core.player_id == -1)
+	if core.training == null and core.sim.live_ticks > 0:
+		s["replay_path"] = Replay.save(core.replay_data())  # U8: keep the last 10
 	summary_ready.emit.call_deferred(s)

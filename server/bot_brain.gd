@@ -17,6 +17,17 @@ var _primary: String = ""
 var _objective_minded: bool = false
 var _chatted_low: bool = false
 var rng := RandomNumberGenerator.new()
+## Data-driven behaviour (U1, data/training.json): mode, reaction_ticks, prayer_accuracy, pray, eat_hp, eat_delay,
+## fake_switch_chance, spec_hp, spec_chance, attack_range, cycle_every, telegraph_ticks, walk. Empty = normal bot.
+var config: Dictionary = {}
+var _ate_tick: int = -100
+var _pending_switch: Array = []   ## [style, tick] after a fake switch
+var _cycle_attacks: int = 0
+var _cycle_last_attack: int = -1
+var _tele_state: String = "switch"
+var _tele_until: int = 0
+var _tele_attack_from: int = 0
+var _walk_set: bool = false
 
 const QUICK_CHAT := ["Freeze them!", "Spec now!", "Falling back!", "On me!", "gf", "Nice one."]
 
@@ -27,6 +38,20 @@ func _init(p_id: int, p_skill: float, seed: int) -> void:
 	rng.seed = seed
 	reaction = clampi(int(round(lerpf(3.0, 1.0, skill))), 1, 3)
 	_objective_minded = rng.randf() < 0.6
+
+
+## Applies a training / exam behaviour config (see data/training.json _doc).
+func configure(cfg: Dictionary) -> void:
+	config = cfg.duplicate()
+	if cfg.has("skill"):
+		skill = float(cfg["skill"])
+		reaction = clampi(int(round(lerpf(3.0, 1.0, skill))), 1, 3)
+	if cfg.has("reaction_ticks"):
+		reaction = maxi(0, int(cfg["reaction_ticks"]))
+
+
+func _mode() -> String:
+	return str(config.get("mode", "fight"))
 
 
 func think(sim: Sim) -> void:
@@ -42,9 +67,28 @@ func think(sim: Sim) -> void:
 	_perceive(sim, me)
 	if sim.phase != "live":
 		return
+	if bool(config.get("walk", false)) and not _walk_set:
+		_walk_set = true
+		sim.queue_intent(id, {"type": "run", "on": false})
+	if _mode() == "passive":
+		return
 	_supplies(sim, me)
 	var t := _choose_target(sim, me)
-	_prayers(sim, me, t)
+	if bool(config.get("pray", true)):
+		_prayers(sim, me, t)
+	match _mode():
+		"flee":
+			_flee(sim, me, t)
+			return
+		"freezer":
+			_freezer(sim, me, t)
+			return
+		"telegraph":
+			_telegraph(sim, me, t)
+			return
+		"cycle":
+			_cycle(sim, me, t)
+			return
 	if sim.rules.type == "domination" and _objective_minded and _play_objective(sim, me, t):
 		return
 	if t != null:
@@ -83,11 +127,12 @@ func _slot_of(me: Fighter, pred: Callable) -> int:
 
 
 func _supplies(sim: Sim, me: Fighter) -> void:
-	var low := 40
+	var low := int(config.get("eat_hp", 40))
 	if me.hp < low and me.food_timer == 0:
 		var s := _slot_of(me, func(it): return str(it.get("timer", "")) == "food")
 		if s >= 0:
 			sim.queue_intent(id, {"type": "use", "slot": s})
+			_ate_tick = sim.tick
 		else:
 			var b := _slot_of(me, func(it): return str(it.get("effect", "")) == "brew")
 			if b >= 0 and me.potion_timer == 0:
@@ -117,7 +162,7 @@ func _choose_target(sim: Sim, me: Fighter) -> Fighter:
 	var best_s := INF
 	for o in sim.fighters.values():
 		var e: Fighter = o
-		if not e.is_alive() or not sim.rules.can_attack(me, e):
+		if not e.is_alive() or not sim.rules.may_engage(me, e):
 			continue
 		var d := MapGrid.chebyshev(me.pos, e.pos)
 		if d > 22:
@@ -158,7 +203,7 @@ func _prayers(sim: Sim, me: Fighter, t: Fighter) -> void:
 		var want := _ward_for(style)
 		if want != "" and not me.has_prayer(want) and me.ward_block_ticks == 0:
 			# Skill check: weaker bots sometimes miss the switch this tick.
-			if rng.randf() < 0.35 + 0.6 * skill:
+			if rng.randf() < float(config.get("prayer_accuracy", 0.35 + 0.6 * skill)):
 				sim.queue_intent(id, {"type": "prayer", "id": want})
 		var off := _best_offensive(me)
 		for p in off:
@@ -206,6 +251,27 @@ func _fight(sim: Sim, me: Fighter, t: Fighter) -> void:
 	var dist := MapGrid.chebyshev(me.pos, t.pos)
 	var styles := _styles_available(me)
 	var cur_style := me.weapon_style()
+	# Training config: pause attacking for eat_delay ticks after eating (the exam bot's tell).
+	var eat_delay := int(config.get("eat_delay", 0))
+	if eat_delay > 0 and sim.tick - _ate_tick < eat_delay:
+		if me.target_id != -1:
+			sim.queue_intent(id, {"type": "stop"})
+		return
+	# Finish a fake switch: the real style one tick after the decoy.
+	if not _pending_switch.is_empty() and sim.tick >= int(_pending_switch[1]):
+		var real := str(_pending_switch[0])
+		_pending_switch = []
+		sim.queue_intent(id, {"type": "switch_set", "style": real})
+		sim.queue_intent(id, {"type": "attack", "target": t.id})
+		return
+	# Limited attack range: walk in closer before attacking.
+	var ar := int(config.get("attack_range", 0))
+	if ar > 0 and dist > ar and t.frozen_ticks == 0:
+		if me.target_id != -1:
+			sim.queue_intent(id, {"type": "stop"})
+		if me.path.is_empty() or me.dest != t.pos:
+			sim.queue_intent(id, {"type": "move", "x": t.pos.x, "y": t.pos.y})
+		return
 	# 1. Specials when the target is low.
 	if _try_spec(sim, me, t, dist):
 		return
@@ -228,6 +294,13 @@ func _fight(sim: Sim, me: Fighter, t: Fighter) -> void:
 			want = "melee"
 		if want != "" and want != cur_style:
 			_last_switch_tick = sim.tick
+			var fake := float(config.get("fake_switch_chance", 0.0))
+			if fake > 0.0 and rng.randf() < fake:
+				for s in ["melee", "ranged", "magic"]:
+					if styles.has(s) and s != want and s != cur_style:
+						sim.queue_intent(id, {"type": "switch_set", "style": s})
+						_pending_switch = [want, sim.tick + 1]
+						return
 			sim.queue_intent(id, {"type": "switch_set", "style": want})
 			sim.queue_intent(id, {"type": "attack", "target": t.id})
 			return
@@ -262,7 +335,7 @@ func _try_spec(sim: Sim, me: Fighter, t: Fighter, dist: int) -> bool:
 		if p >= 0:
 			sim.queue_intent(id, {"type": "equip", "slot": p})
 		return false
-	if t.hp > 55 or rng.randf() > 0.3 + 0.5 * skill:
+	if t.hp > int(config.get("spec_hp", 55)) or rng.randf() > float(config.get("spec_chance", 0.3 + 0.5 * skill)):
 		return false
 	if w.has("spec") and me.spec_energy >= int(w["spec"]["cost"]):
 		if not me.spec_armed:
@@ -283,6 +356,85 @@ func _try_spec(sim: Sim, me: Fighter, t: Fighter, dist: int) -> bool:
 	sim.queue_intent(id, {"type": "spec"})
 	sim.queue_intent(id, {"type": "attack", "target": t.id})
 	return true
+
+
+# ---------------------------------------------------------------- scripted training modes (U1)
+
+## Runs away from the target and never attacks.
+func _flee(sim: Sim, me: Fighter, t: Fighter) -> void:
+	if t == null:
+		return
+	if me.target_id != -1:
+		sim.queue_intent(id, {"type": "stop"})
+	if not me.path.is_empty() and sim.tick % 4 != 0:
+		return
+	var dir := me.pos - t.pos
+	if dir == Vector2i.ZERO:
+		dir = Vector2i(1, 0)
+	var away := me.pos + Vector2i(signi(dir.x), signi(dir.y)) * 6 + Vector2i(rng.randi_range(-2, 2), rng.randi_range(-2, 2))
+	away = sim.map.nearest_walkable(Vector2i(clampi(away.x, 1, sim.map.w - 2), clampi(away.y, 1, sim.map.h - 2)))
+	sim.queue_intent(id, {"type": "move", "x": away.x, "y": away.y})
+
+
+## Chases (walking) and casts freezes on the target whenever it can.
+func _freezer(sim: Sim, me: Fighter, t: Fighter) -> void:
+	if t == null:
+		return
+	var dist := MapGrid.chebyshev(me.pos, t.pos)
+	var fz := Loadout.best_freeze_spell(me.spellbook, me.unlocked)
+	if dist <= 10 and t.frozen_ticks == 0 and t.freeze_immune_ticks == 0 and fz != "" and me.attack_timer <= 0 and me.pending_spell == "" and sim._spell_usable(me, fz, false):
+		sim.queue_intent(id, {"type": "cast", "spell": fz, "target": t.id})
+		return
+	if dist > 6 and (me.path.is_empty() or sim.tick % 3 == 0) and me.pending_spell == "":
+		sim.queue_intent(id, {"type": "move", "x": t.pos.x, "y": t.pos.y})
+
+
+## Switches to a new style, waits telegraph_ticks so the switch can be read, attacks once, repeats.
+func _telegraph(sim: Sim, me: Fighter, t: Fighter) -> void:
+	if t == null:
+		return
+	var styles := _styles_available(me).keys()
+	match _tele_state:
+		"switch":
+			var options: Array = styles.filter(func(s): return s != me.weapon_style())
+			if options.is_empty():
+				options = styles
+			var pick: String = options[rng.randi_range(0, options.size() - 1)]
+			sim.queue_intent(id, {"type": "switch_set", "style": pick})
+			sim.queue_intent(id, {"type": "stop"})
+			_tele_until = sim.tick + int(config.get("telegraph_ticks", 3))
+			_tele_state = "wait"
+		"wait":
+			if sim.tick >= _tele_until:
+				_tele_attack_from = sim.tick
+				sim.queue_intent(id, {"type": "attack", "target": t.id})
+				_tele_state = "attack"
+		"attack":
+			if me.last_attack_tick >= _tele_attack_from:
+				sim.queue_intent(id, {"type": "stop"})
+				_tele_state = "switch"
+			elif sim.tick - _tele_attack_from > 12:
+				_tele_state = "switch"  # couldn't reach; try again
+
+
+## Fights normally but changes style every cycle_every attacks (melee -> ranged -> magic).
+func _cycle(sim: Sim, me: Fighter, t: Fighter) -> void:
+	if t == null:
+		return
+	if me.last_attack_tick != _cycle_last_attack and me.last_attack_tick > 0:
+		_cycle_last_attack = me.last_attack_tick
+		_cycle_attacks += 1
+	var styles := _styles_available(me)
+	var order: Array = ["melee", "ranged", "magic"].filter(func(s): return styles.has(s))
+	if order.is_empty():
+		return
+	var want: String = order[(_cycle_attacks / maxi(1, int(config.get("cycle_every", 3)))) % order.size()]
+	if me.weapon_style() != want:
+		sim.queue_intent(id, {"type": "switch_set", "style": want})
+		sim.queue_intent(id, {"type": "attack", "target": t.id})
+		return
+	if me.target_id != t.id:
+		sim.queue_intent(id, {"type": "attack", "target": t.id})
 
 
 ## Obelisks: head for the nearest obelisk we don't own (or one being taken from us),

@@ -57,6 +57,13 @@ var _killfeed: VBoxContainer
 var _score_label: RichTextLabel
 var _obj_label: RichTextLabel
 var _center: Label
+var _tick_dot: ColorRect   ## U10 visual tick indicator
+var _recap: RichTextLabel  ## U6 death recap, shown while dead
+var _training: RichTextLabel  ## U1 Proving Grounds progress panel
+var _spec_panel: RichTextLabel  ## U8 spectator overlay: every fighter's HP, prayer and special energy
+var spectating: bool = false
+var _side_panel: Control
+var _recap_tick: int = -1
 var _center_sub: Label
 var _center_timer: float = 0.0
 var _chat: RichTextLabel
@@ -82,7 +89,7 @@ func setup(p: Profile, s: Sfx, first: Dictionary, map: MapGrid) -> void:
 	me = first.get("me", {})
 	my_id = int(me.get("id", -1))
 	my_team = int(me.get("team", 0))
-	ffa = str(first.get("mode_type", "")) == "ffa"
+	ffa = bool(first.get("ffa", str(first.get("mode_type", "")) == "ffa"))
 	_build_side_panel()
 	_build_orbs_and_minimap(map)
 	_build_top()
@@ -107,6 +114,7 @@ func _panel(rect_pos: Vector2, rect_size: Vector2, anchor: int) -> PanelContaine
 
 func _build_side_panel() -> void:
 	var panel := PanelContainer.new()
+	_side_panel = panel
 	panel.anchor_left = 1.0
 	panel.anchor_right = 1.0
 	panel.anchor_top = 1.0
@@ -465,6 +473,70 @@ func _build_center() -> void:
 	_popups.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_popups.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_popups)
+	_recap = RichTextLabel.new()
+	_recap.bbcode_enabled = true
+	_recap.fit_content = true
+	_recap.scroll_active = false
+	_recap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_recap.anchor_left = 0.5
+	_recap.anchor_right = 0.5
+	_recap.anchor_top = 0.42
+	_recap.offset_left = -330
+	_recap.offset_right = 330
+	_recap.add_theme_font_size_override("normal_font_size", 15)
+	_recap.add_theme_font_size_override("mono_font_size", 14)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.05, 0.04, 0.03, 0.82)
+	sb.border_color = Color("6b5b3e")
+	sb.set_border_width_all(2)
+	sb.set_content_margin_all(10)
+	_recap.add_theme_stylebox_override("normal", sb)
+	_recap.visible = false
+	root.add_child(_recap)
+	_spec_panel = RichTextLabel.new()
+	_spec_panel.bbcode_enabled = true
+	_spec_panel.fit_content = true
+	_spec_panel.scroll_active = false
+	_spec_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_spec_panel.anchor_top = 0.24
+	_spec_panel.offset_left = 10
+	_spec_panel.offset_right = 470
+	_spec_panel.add_theme_font_size_override("mono_font_size", 13)
+	var ssb := StyleBoxFlat.new()
+	ssb.bg_color = Color(0.05, 0.04, 0.03, 0.72)
+	ssb.set_content_margin_all(8)
+	_spec_panel.add_theme_stylebox_override("normal", ssb)
+	_spec_panel.visible = false
+	root.add_child(_spec_panel)
+	_training = RichTextLabel.new()
+	_training.bbcode_enabled = true
+	_training.fit_content = true
+	_training.scroll_active = false
+	_training.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_training.anchor_left = 0.5
+	_training.anchor_right = 0.5
+	_training.offset_left = -300
+	_training.offset_right = 300
+	_training.offset_top = 92
+	_training.add_theme_font_size_override("normal_font_size", 15)
+	var tsb := StyleBoxFlat.new()
+	tsb.bg_color = Color(0.05, 0.04, 0.03, 0.78)
+	tsb.border_color = Color("6b5b3e")
+	tsb.set_border_width_all(2)
+	tsb.set_content_margin_all(8)
+	_training.add_theme_stylebox_override("normal", tsb)
+	_training.visible = false
+	root.add_child(_training)
+	_tick_dot = ColorRect.new()
+	_tick_dot.color = Color(1.0, 0.85, 0.25, 0.0)
+	_tick_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tick_dot.anchor_left = 0.5
+	_tick_dot.anchor_right = 0.5
+	_tick_dot.offset_left = -9
+	_tick_dot.offset_right = 9
+	_tick_dot.offset_top = 64
+	_tick_dot.offset_bottom = 82
+	root.add_child(_tick_dot)
 	_center = UITheme.label("", 44, UITheme.YELLOW)
 	_center.anchor_left = 0.5
 	_center.anchor_right = 0.5
@@ -545,7 +617,8 @@ func _build_pause() -> void:
 	vb.add_child(UITheme.label("Menu", 28, UITheme.GOLD))
 	vb.add_child(UITheme.button("Resume", func(): _pause.visible = false))
 	vb.add_child(UITheme.button("Leave match (counts as a loss)", func(): leave_requested.emit()))
-	var keys := UITheme.label("Keys: 1/2/3 wards, 4 offence prayer, E spec, Q eat,\nZ/X/C melee/ranged/magic switch, R run,\nT Rebuke, Y trap, 5/6/7 streaks, Tab scores,\narrows/middle-mouse camera, wheel zoom", 12)
+	var keys := UITheme.label("Keys: 1/2/3 wards, 4 offence prayer, E spec, Q eat,\nZ/X/C melee/ranged/magic switch, V/B/N gear presets
+(Shift to save), R run,\nT Rebuke, Y trap, 5/6/7 streaks, Tab scores,\narrows/middle-mouse camera, wheel zoom", 12)
 	vb.add_child(keys)
 
 
@@ -563,9 +636,11 @@ func update(s: Dictionary) -> void:
 	snap = s
 	me = s.get("me", {})
 	for f in s.get("fighters", []):
-		names[int(f["id"])] = str(f["name"])
+		names[int(f["id"])] = str(f["name"]) + (" [BOT]" if bool(f.get("bot", false)) else "")
 		teams[int(f["id"])] = int(f["team"])
 	if me.is_empty():
+		if bool(s.get("spectator", false)):
+			_update_spectator(s)
 		return
 	_update_inventory()
 	_update_equipment()
@@ -714,6 +789,8 @@ func use_streak_requested(id: String) -> void:
 
 
 func _team_name(t: int) -> String:
+	if spectating:
+		return "Blue team" if t == 0 else "Red team"
 	return "Your team" if t == my_team else "Enemy team"
 
 
@@ -740,9 +817,15 @@ func _update_scores() -> void:
 	elif mt == "elimination":
 		var them := 1 - my_team
 		txt = "[center][color=#%s]You [b]%d[/b][/color]  -  [color=#%s][b]%d[/b] Enemy[/color]   ·   Round %d   ·   %s[/center]" % [_color_hex(my_team), int(scores[my_team]), _color_hex(them), int(scores[them]), int(snap.get("round", 1)), clock]
+		if spectating:
+			txt = txt.replace("You [b]", "Blue [b]").replace("[/b] Enemy", "[/b] Red")
 	else:
 		var them := 1 - my_team
 		txt = "[center][color=#%s]You [b]%d[/b][/color]  -  [color=#%s][b]%d[/b] Enemy[/color]   ·   %s   ·   to %d[/center]" % [_color_hex(my_team), int(scores[my_team]), _color_hex(them), int(scores[them]), clock, int(snap.get("score_limit", 0))]
+		if spectating:
+			txt = txt.replace("You [b]", "Blue [b]").replace("[/b] Enemy", "[/b] Red")
+	if str(snap.get("mode_type", "")) == "training":
+		txt = "[center]Proving Grounds   ·   %s[/center]" % clock
 	_score_label.text = txt
 	var objs: Array = snap.get("objectives", [])
 	if objs.is_empty():
@@ -767,10 +850,14 @@ func _update_center() -> void:
 		var secs := int(ceil(int(snap.get("phase_ticks", 0)) * 0.6))
 		_center.text = "Match starts in %d" % secs if int(snap.get("round", 1)) <= 1 else "Round %d in %d" % [int(snap.get("round", 1)), secs]
 		_center_sub.text = "Set your prayers and gear.  Press Space when ready." if int(snap.get("round", 1)) <= 1 else ""
+		if int(snap.get("round", 1)) <= 1 and not spectating:
+			_center_sub.text += "\n" + _lobby_line()
 		_center_timer = 0.0
 		return
 	if phase == "over":
 		return
+	_show_recap(me.get("recap", {}) if bool(me.get("dead", false)) else {})
+	_show_training(snap.get("training", {}))
 	if bool(me.get("dead", false)):
 		var mode_t := str(snap.get("mode_type", ""))
 		if mode_t == "elimination":
@@ -784,6 +871,135 @@ func _update_center() -> void:
 	if _center_timer <= 0.0:
 		_center.text = ""
 		_center_sub.text = ""
+
+
+## U6 death recap panel: hits in the last life (style, weapon, damage, your ward; wrong wards in red) and eating.
+func _show_recap(r: Dictionary) -> void:
+	if r.is_empty() or (r.get("hits", []) as Array).is_empty():
+		_recap.visible = false
+		_recap_tick = -1
+		return
+	_recap.visible = true
+	if int(r.get("tick", -1)) == _recap_tick:
+		return
+	_recap_tick = int(r.get("tick", -1))
+	var t := "[b][color=#ff981f]Death recap[/color][/b]"
+	if str(r.get("killer", "")) != "":
+		t += "  -  killed by [b]%s[/b]" % str(r["killer"])
+	t += "\n[code]%6s  %-18s %-22s %4s  %s[/code]\n" % ["when", "from", "weapon", "dmg", "your ward"]
+	for h in r["hits"]:
+		var style := str(h["style"])
+		var col := UITheme.style_color(style).to_html(false) if DB.STYLES.has(style) else "c8c8c8"
+		var ward := str(h["ward"])
+		var wtxt := "-"
+		if DB.STYLES.has(style):
+			wtxt = ward.capitalize() if ward != "" else "none"
+		var who := str(h["name"]) + (" [BOT]" if bool(h.get("bot", false)) else "")
+		var line := "%5.1fs  %-18s %-22s %4s" % [-float(h["ago"]) * 0.6, who.left(18), str(h["weapon"]).left(22), "miss" if bool(h["splash"]) else str(int(h["dmg"]))]
+		var wcol := "ff5040" if bool(h["wrong_ward"]) else ("7fd07f" if DB.STYLES.has(style) else "aaaaaa")
+		t += "[code][color=#%s]%s[/color]  [color=#%s]%s%s[/color][/code]\n" % [col, line, wcol, wtxt, " (wrong)" if bool(h["wrong_ward"]) else ""]
+	var eats: Array = r.get("eats", [])
+	if not eats.is_empty():
+		var parts: Array = []
+		for e in eats:
+			parts.append("%s %.1fs%s" % [str(e["name"]), -float(e["ago"]) * 0.6, (" (%d wasted)" % int(e["wasted"])) if int(e["wasted"]) > 0 else ""])
+		t += "[color=#e8dcc0]Ate: %s[/color]\n" % ", ".join(parts)
+	if int(r.get("wrong_wards", 0)) > 0:
+		t += "[color=#ff8060]%d hit%s landed while you prayed the wrong ward.[/color]" % [int(r["wrong_wards"]), "" if int(r["wrong_wards"]) == 1 else "s"]
+	_recap.text = t
+
+
+## U3: "Your gear: tier X, lobby average: tier Y" and the lobby's combat-level range, so gear gaps are visible.
+func _lobby_line() -> String:
+	var mine := 0.0
+	var sum := 0.0
+	var n := 0
+	var lo := 999
+	var hi := 0
+	for f in snap.get("fighters", []):
+		if str(f.get("npc", "")) != "":
+			continue
+		var gt := float(f.get("gear_tier", 1.0))
+		sum += gt
+		n += 1
+		lo = mini(lo, int(f["cl"]))
+		hi = maxi(hi, int(f["cl"]))
+		if int(f["id"]) == my_id:
+			mine = gt
+	if n == 0:
+		return ""
+	return "Your gear: tier %.1f   ·   lobby average: tier %.1f   ·   combat levels %d-%d" % [mine, sum / n, lo, hi]
+
+
+## U8: spectator / replay view. Scores, minimap, kill feed and an overlay with both sides' HP, prayer and spec.
+func _update_spectator(s: Dictionary) -> void:
+	if not spectating:
+		spectating = true
+		for o in [orb_hp, orb_prayer, orb_run, orb_spec, _side_panel]:
+			if o != null:
+				(o as CanvasItem).visible = false
+	minimap.update_snap(s, int(s["tick"]))
+	_update_scores()
+	if _scoreboard.visible:
+		_fill_scoreboard()
+	for e in s.get("events", []):
+		_on_event(e)
+	_spec_panel.visible = true
+	var by_team := {}
+	for f in s.get("fighters", []):
+		if str(f.get("npc", "")) != "":
+			continue
+		var t := int(f["team"]) if not ffa else 0
+		if not by_team.has(t):
+			by_team[t] = []
+		by_team[t].append(f)
+	var txt := ""
+	for t in by_team:
+		if not ffa:
+			txt += "[color=#%s][b]%s[/b][/color]\n" % [_color_hex(int(t)), _team_name(int(t))]
+		for f in by_team[t]:
+			var hp := int(f["hp"])
+			var mx := maxi(1, int(f["max_hp"]))
+			var bar := "#".repeat(int(round(10.0 * hp / mx))) + "-".repeat(10 - int(round(10.0 * hp / mx)))
+			var ovh := str(f.get("ovh", ""))
+			var ward := ""
+			if ovh != "":
+				ward = str(DB.prayers.get(ovh, {}).get("protect", ovh)).left(3)
+			var name := (str(f["name"]) + (" [BOT]" if bool(f.get("bot", false)) else "")).left(16)
+			var line := "%-16s %3d [%s] pr %2d sp %3d %s" % [name, hp, bar, int(f.get("prayer", 0)), int(f.get("spec", 0)), ward]
+			txt += "[code][color=#%s]%s[/color][/code]\n" % ["777777" if bool(f["dead"]) else "e8dcc0", line]
+	_spec_panel.text = txt
+
+
+## U1 training panel: drill name, goal, progress, the latest instructor note; live stats in the dummy room.
+func _show_training(t: Dictionary) -> void:
+	if t.is_empty():
+		_training.visible = false
+		return
+	_training.visible = true
+	var txt := "[center][b][color=#ff981f]%s[/color][/b]" % str(t.get("name", ""))
+	if str(t.get("label", "")) != "":
+		txt += "  [color=#%s](%s)[/color]" % ["7fd07f" if str(t["label"]) == "learning" else "ff8060", str(t["label"])]
+	txt += "[/center]\n[color=#e8dcc0]%s[/color]\n" % str(t.get("desc", ""))
+	if str(t.get("progress", "")) != "":
+		txt += "[b]%s[/b]\n" % str(t["progress"])
+	var d: Dictionary = t.get("dummy", {})
+	if not d.is_empty():
+		txt += "[b]%s[/b]  accuracy [b]%d%%[/b]   max hit [b]%d[/b]   expected [b]%.2f[/b] dmg/tick   last %d hits: [b]%.2f[/b] dmg/tick\n" % [str(d["style"]).capitalize(), int(round(float(d["accuracy"]) * 100.0)), int(d["max_hit"]), float(d["expected_dpt"]), int(d["hits"]), float(d["observed_dpt"])]
+	if bool(t.get("callouts", false)):
+		txt += "[color=#ffd23f]Call it: 8 melee   9 ranged   0 magic[/color]\n"
+	if str(t.get("note", "")) != "":
+		txt += "[i]%s[/i]" % str(t["note"])
+	_training.text = txt
+
+
+## Flashes the tick square once (called every snapshot = every game tick when the option is on).
+func pulse_tick() -> void:
+	if _tick_dot == null:
+		return
+	_tick_dot.color.a = 0.95
+	var tw := create_tween()
+	tw.tween_property(_tick_dot, "color:a", 0.0, 0.45)
 
 
 func flash_center(text: String, sub: String = "", secs: float = 2.0) -> void:
@@ -957,7 +1173,7 @@ func _fill_scoreboard() -> void:
 			txt += "\n[color=#%s][b]%s[/b][/color]\n" % [_color_hex(int(t)), _team_name(int(t))]
 		txt += "[code]%-14s %4s %4s %4s %6s %4s %4s[/code]\n" % ["Name", "K", "D", "A", "Dmg", "Obj", "CL"]
 		for f in list:
-			var line := "%-14s %4d %4d %4d %6d %4d %4d" % [str(f["name"]).left(14), int(f["kills"]), int(f["deaths"]), int(f["assists"]), int(f["damage"]), int(f["obj"]), int(f["cl"])]
+			var line := "%-14s %4s %4d %4d %4d %6d %4d %4d" % [str(f["name"]).left(14), "BOT" if bool(f.get("bot", false)) else "", int(f["kills"]), int(f["deaths"]), int(f["assists"]), int(f["damage"]), int(f["obj"]), int(f["cl"])]
 			if int(f["id"]) == my_id:
 				txt += "[color=#ffff00][code]%s[/code][/color]\n" % line
 			else:

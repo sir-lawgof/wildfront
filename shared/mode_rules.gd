@@ -28,8 +28,9 @@ func _init(p_sim: Sim, p_mode: Dictionary) -> void:
 	round_time = DB.ticks(float(mode.get("round_time_s", 150)))
 
 
+## Everyone for themselves: FFA, or any teams-0 mode (e.g. FFA with The Lab's One Life rounds).
 func is_ffa() -> bool:
-	return type == "ffa"
+	return type == "ffa" or int(mode.get("teams", 2)) <= 0
 
 
 func is_rounds() -> bool:
@@ -50,6 +51,38 @@ func can_attack(a: Fighter, b: Fighter) -> bool:
 	if a.npc_kind == "guardian" and b.id == a.owner_id:
 		return false
 	return a.team != b.team
+
+
+## can_attack plus the engagement timer (data: mode "engagement_ticks", 0 = off). While A and B are
+## engaged, nobody else can attack either of them and neither can attack anyone else.
+func may_engage(a: Fighter, b: Fighter) -> bool:
+	if not can_attack(a, b):
+		return false
+	if engagement_ticks() <= 0 or a.npc_kind != "" or b.npc_kind != "":
+		return true
+	return not _locked_out(a, b.id) and not _locked_out(b, a.id)
+
+
+func engagement_ticks() -> int:
+	return int(sim.mode.get("engagement_ticks", 0))
+
+
+func _locked_out(f: Fighter, other_id: int) -> bool:
+	if f.engaged_with == -1 or f.engaged_with == other_id or sim.tick >= f.engaged_until:
+		return false
+	var p := sim.get_fighter(f.engaged_with)
+	return p != null and p.is_alive()
+
+
+## Called when a attacks b (hit or miss).
+func on_attack(a: Fighter, b: Fighter) -> void:
+	var n := engagement_ticks()
+	if n <= 0 or a.npc_kind != "" or b.npc_kind != "":
+		return
+	a.engaged_with = b.id
+	b.engaged_with = a.id
+	a.engaged_until = sim.tick + n
+	b.engaged_until = sim.tick + n
 
 
 func setup_objectives() -> void:
@@ -156,24 +189,42 @@ func _tick_rounds() -> void:
 			_start_next_round()
 		return
 	round_ticks += 1
-	var alive := [0, 0]
-	var hp := [0, 0]
+	# Any number of sides (2 teams, or every FFA player when The Lab's One Life is on).
+	var sides := sim.scores.size()
+	var alive: Array = []
+	var hp: Array = []
+	alive.resize(sides)
+	alive.fill(0)
+	hp.resize(sides)
+	hp.fill(0)
 	for f in sim.fighters.values():
 		var fi: Fighter = f
-		if fi.npc_kind != "":
+		if fi.npc_kind != "" or fi.team < 0 or fi.team >= sides:
 			continue
 		if fi.is_alive():
 			alive[fi.team] += 1
 			hp[fi.team] += fi.hp
+	var standing: Array = []
+	for t in range(sides):
+		if int(alive[t]) > 0:
+			standing.append(t)
 	var winner := -2
-	if alive[0] == 0 and alive[1] == 0:
+	if standing.is_empty():
 		winner = -1
-	elif alive[0] == 0:
-		winner = 1
-	elif alive[1] == 0:
-		winner = 0
+	elif standing.size() == 1 and _sides_present() > 1:
+		winner = int(standing[0])
 	elif round_ticks >= round_time:
-		winner = 0 if hp[0] > hp[1] else (1 if hp[1] > hp[0] else -1)
+		var best := -1
+		var best_hp := -1
+		var tie := false
+		for t in standing:
+			if int(hp[t]) > best_hp:
+				best_hp = int(hp[t])
+				best = int(t)
+				tie = false
+			elif int(hp[t]) == best_hp:
+				tie = true
+		winner = -1 if tie else best
 	if winner == -2:
 		return
 	last_round_winner = winner
@@ -189,6 +240,16 @@ func _tick_rounds() -> void:
 		sim.end_match(winner)
 		return
 	round_over_ticks = 5
+
+
+## How many sides have at least one fighter (alive or not) in the match.
+func _sides_present() -> int:
+	var seen := {}
+	for f in sim.fighters.values():
+		var fi: Fighter = f
+		if fi.npc_kind == "":
+			seen[fi.team] = true
+	return seen.size()
 
 
 func _start_next_round() -> void:

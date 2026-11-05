@@ -5,6 +5,9 @@ extends Control
 ## end-of-match scoreboard + XP summary.
 
 signal start_match(cfg: Dictionary)
+signal watch_replay(path: String)
+
+var _offer_dialog: Window = null
 signal quit_game
 
 var profile: Profile
@@ -96,14 +99,119 @@ func show_main() -> void:
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(sub)
 	vb.add_child(_profile_card())
-	for b in [["Play vs bots", show_play], ["LAN multiplayer", show_lan], ["Barracks", show_barracks], ["Options", show_options], ["Quit", func(): quit_game.emit()]]:
+	for b in [["Play vs bots", show_play], ["Proving Grounds", show_training], ["LAN multiplayer", show_lan], ["Barracks", show_barracks], ["Replays", show_replays], ["Options", show_options], ["Patch notes", func(): show_patch_notes()], ["Quit", func(): quit_game.emit()]]:
 		var btn := UITheme.button(str(b[0]), func(): _click(); (b[1] as Callable).call())
 		btn.custom_minimum_size = Vector2(0, 52)
 		btn.add_theme_font_size_override("font_size", 24)
 		vb.add_child(btn)
+	var news: Array = profile.ranked_housekeeping()
+	if not news.is_empty():
+		var nl := UITheme.label("\n".join(news), 15, UITheme.YELLOW)
+		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vb.add_child(nl)
+	if not bool(profile.data.get("proving_offered", false)):
+		profile.data["proving_offered"] = true
+		profile.data["seen_patch"] = DB.latest_patch()  # a brand-new player doesn't need patch notes
+		profile.save()
+		_offer_training()
+	elif str(profile.data.get("seen_patch", "")) != DB.latest_patch():
+		show_patch_notes()  # once after an update
+		return
 	var foot := UITheme.label("An original fan-made prototype. Not affiliated with or endorsed by Jagex or Activision.", 12, Color(0.6, 0.55, 0.45))
 	foot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(foot)
+
+
+# ================================================================ Proving Grounds (U1)
+
+## First launch only: offer the Proving Grounds once.
+func _offer_training() -> void:
+	var d := ConfirmationDialog.new()
+	d.theme = UITheme.get_theme()
+	d.title = "Welcome to Wildfront"
+	d.dialog_text = "New to tick-based PvP?\n\n%s runs short drills on wards, freezes, special attacks,\ngear switching, combo eating and reading your enemy, then a fair Graduation fight.\n\nGo to the Proving Grounds now? (It's always on the main menu.)" % str(DB.training["instructor"]["name"])
+	d.ok_button_text = "Train now"
+	d.cancel_button_text = "Maybe later"
+	d.confirmed.connect(func(): show_training())
+	add_child(d)
+	_offer_dialog = d
+	d.popup_centered()
+
+
+## Closes the first-launch offer if a match starts while it's open.
+func close_popups() -> void:
+	if is_instance_valid(_offer_dialog):
+		_offer_dialog.queue_free()
+
+
+func _training_cfg(tid: String) -> Dictionary:
+	var f := Training.find(tid)
+	return {"training": tid, "mode": "duel" if str(f.get("kind", "")) == "exam" else "training", "map": str(DB.training.get("map", "castle_courtyard")), "pre_ticks": 5}
+
+
+func show_training() -> void:
+	var vb := _frame("Proving Grounds", 1100, 820)
+	var ins: Dictionary = DB.training["instructor"]
+	var intro := UITheme.label("%s: \"%s\"  Each drill teaches one mechanic. Pass them, then take the Graduation fight." % [ins["name"], ins["desc"]], 15)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD
+	vb.add_child(intro)
+	var done: Dictionary = profile.data.get("training", {})
+	vb.add_child(UITheme.label("Drills", 22, UITheme.GOLD))
+	for d in DB.training["drills"]:
+		vb.add_child(_training_row(d, bool(done.get(str(d["id"]), false)), "drill"))
+	vb.add_child(UITheme.label("Exams", 22, UITheme.GOLD))
+	for e in DB.training["exams"]:
+		vb.add_child(_training_row(e, bool(done.get(str(e["id"]), false)), str(e["label"])))
+	vb.add_child(_training_row(DB.training["dummy"], false, "practice"))
+	vb.add_child(UITheme.button("Back", func(): _click(); show_main()))
+
+
+func _training_row(d: Dictionary, passed: bool, tag: String) -> Control:
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 12)
+	var b := UITheme.button(str(d["name"]), func(): _click(); start_match.emit(_training_cfg(str(d["id"]))), 240)
+	hb.add_child(b)
+	var badge_col: Color = {"learning": Color("7fd07f"), "aspirational": Color("ff8060"), "drill": UITheme.GOLD, "practice": UITheme.CREAM}.get(tag, UITheme.CREAM)
+	var badge := UITheme.label(tag.capitalize(), 13, badge_col)
+	badge.custom_minimum_size.x = 96
+	hb.add_child(badge)
+	var desc := UITheme.label(("[passed]  " if passed else "") + str(d["desc"]), 13, Color("ffd23f") if passed else UITheme.CREAM)
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+	desc.custom_minimum_size.x = 700
+	hb.add_child(desc)
+	return hb
+
+
+func show_training_results(summary: Dictionary, applied: Dictionary) -> void:
+	var tr: Dictionary = summary.get("training", {})
+	var passed := bool(tr.get("passed", false))
+	var vb := _frame(str(tr.get("name", "Proving Grounds")), 900, 520)
+	var head := UITheme.label("PASSED" if passed else "NOT YET", 40, UITheme.YELLOW if passed else UITheme.RED)
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vb.add_child(head)
+	if str(tr.get("label", "")) != "":
+		var lab := UITheme.label("(%s challenge)" % str(tr["label"]), 16, UITheme.CREAM)
+		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		vb.add_child(lab)
+	var note := UITheme.label(str(tr.get("note", "")), 18)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD
+	vb.add_child(note)
+	var tot: Dictionary = applied.get("total", {})
+	if int(tot.get("melee", 0)) + int(tot.get("ranged", 0)) + int(tot.get("magic", 0)) > 0:
+		vb.add_child(UITheme.label("First pass reward: +%d melee, +%d ranged, +%d magic XP" % [int(tot["melee"]), int(tot["ranged"]), int(tot["magic"])], 16, UITheme.GOLD))
+	for r in applied.get("training_rewards", []):
+		vb.add_child(UITheme.label("Unlocked: %s" % str(r), 16, UITheme.YELLOW))
+	var rep := RichTextLabel.new()
+	rep.bbcode_enabled = true
+	rep.fit_content = true
+	rep.text = _fight_report_text(summary.get("fight_report", {})) if str(tr.get("kind", "")) == "exam" else ""
+	vb.add_child(rep)
+	var hb := HBoxContainer.new()
+	vb.add_child(hb)
+	hb.add_child(UITheme.button("Try again", func(): start_match.emit(_training_cfg(str(tr.get("id", ""))))))
+	hb.add_child(UITheme.button("Proving Grounds", func(): show_training()))
+	hb.add_child(UITheme.button("Main menu", func(): show_main()))
 
 
 func _profile_card() -> Control:
@@ -152,6 +260,8 @@ func show_play() -> void:
 	var map_opt := OptionButton.new()
 	for mk in DB.modes["modes"]:
 		var m: Dictionary = DB.modes["modes"][mk]
+		if bool(m.get("hidden", false)):
+			continue
 		var team_txt := "%dv%d" % [int(m["team_size"]), int(m["team_size"])] if int(m.get("teams", 2)) > 0 else "%d players" % int(m["team_size"])
 		var b := UITheme.button("%s  (%s)" % [m["name"], team_txt], func():
 			_click()
@@ -164,6 +274,7 @@ func show_play() -> void:
 		modes_box.add_child(b)
 		mode_buttons[mk] = b
 	modes_box.add_child(desc)
+	modes_box.add_child(_private_box())
 	var right := VBoxContainer.new()
 	right.add_theme_constant_override("separation", 8)
 	right.custom_minimum_size.x = 500
@@ -172,11 +283,23 @@ func show_play() -> void:
 	map_opt.item_selected.connect(func(i): _play_cfg["map"] = str(map_opt.get_item_metadata(i)))
 	right.add_child(map_opt)
 	right.add_child(UITheme.label("Playlist", 20, UITheme.GOLD))
+	var feat := Brackets.featured()
+	if feat != "":
+		var days := int(ceil(Brackets.seconds_to_rotation() / 86400.0))
+		right.add_child(UITheme.label("Featured bracket this week: %s (ranked uses it; changes in %d day%s)" % [Brackets.display_name(feat), days, "" if days == 1 else "s"], 14, UITheme.YELLOW))
+	var mut := Mutators.current()
+	if mut != "":
+		var md := Mutators.get_def(mut)
+		right.add_child(UITheme.label("This week in The Lab: %s - %s" % [str(md["name"]), str(md["desc"])], 14, Color("8fc7ff")))
+		var wk := Brackets.week_index(int(Time.get_unix_time_from_system()))
+		var last := Mutators.tally(profile.data.get("lab_votes", {}), wk - 1)
+		if int(last["keep"]) + int(last["change"]) + int(last["drop"]) > 0:
+			right.add_child(UITheme.label("Last week's Lab (%s), your votes: keep %d, change %d, drop %d" % [Mutators.display_name(str(last["mutator"])), int(last["keep"]), int(last["change"]), int(last["drop"])], 13, UITheme.CREAM))
 	var pl := OptionButton.new()
 	var keys: Array = DB.modes["playlists"].keys()
 	for i in range(keys.size()):
 		var p: Dictionary = DB.modes["playlists"][keys[i]]
-		pl.add_item("%s - %s" % [p["name"], p["desc"]])
+		pl.add_item("%s%s - %s" % [p["name"], "  [Featured]" if str(p.get("bracket", "")) == feat and feat != "" else "", p["desc"]])
 		pl.set_item_metadata(i, keys[i])
 		if keys[i] == _play_cfg["playlist"]:
 			pl.select(i)
@@ -194,8 +317,9 @@ func show_play() -> void:
 	class_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
 	class_desc.custom_minimum_size = Vector2(480, 90)
 	var show_cls := func():
-		var lo := Loadout.build(profile.selected_class_def(), profile.unlocked(), {"supply": "full"})
-		class_desc.text = _loadout_text(lo)
+		var bid := str(DB.modes["playlists"].get(_play_cfg["playlist"], {}).get("bracket", ""))
+		var lo := Brackets.build_loadout(bid, profile.selected_class_def(), "full") if bid != "" else Loadout.build(profile.selected_class_def(), profile.unlocked(), {"supply": "full"})
+		class_desc.text = ("%s bracket kit: " % Brackets.display_name(bid) if bid != "" else "") + _loadout_text(lo)
 	co.item_selected.connect(func(i):
 		profile.data["selected_class"] = str(co.get_item_metadata(i))
 		profile.save()
@@ -203,6 +327,9 @@ func show_play() -> void:
 	right.add_child(co)
 	right.add_child(class_desc)
 	show_cls.call()
+	pl.item_selected.connect(func(_i): show_cls.call())
+	var rng_now := Matchmaker.range_for(profile.combat_level())
+	right.add_child(UITheme.label("Casual matchmaking: combat levels %d-%d (within %d of yours; widens by %d every %d s of waiting). Bots are matched the same way." % [int(rng_now[0]), int(rng_now[1]), Matchmaker.window(0.0), int(Matchmaker.cfg()["widen_by"]), int(Matchmaker.cfg()["widen_every_s"])], 13, UITheme.CREAM))
 	right.add_child(UITheme.label("Bot difficulty", 20, UITheme.GOLD))
 	var sl := HSlider.new()
 	sl.min_value = 0.15
@@ -219,7 +346,7 @@ func show_play() -> void:
 	right.add_child(sl_lbl)
 	var go := UITheme.button("Find match", func():
 		_click()
-		var cfg := _play_cfg.duplicate()
+		var cfg := _match_cfg()
 		cfg["bot_skill"] = float(profile.setting("bot_skill"))
 		if bool(profile.setting("short_countdown")):
 			cfg["pre_ticks"] = 5
@@ -227,8 +354,320 @@ func show_play() -> void:
 	go.custom_minimum_size = Vector2(0, 56)
 	go.add_theme_font_size_override("font_size", 26)
 	vb.add_child(go)
+	vb.add_child(UITheme.button("Ranked  -  %s" % Ranked.visible_rank(profile.data["ranked"]), func(): _click(); show_ranked()))
 	vb.add_child(UITheme.button("Back", func(): _click(); show_main()))
 	(mode_buttons[_play_cfg["mode"]] as Button).emit_signal("pressed")
+
+
+## U8 private match: custom rules for this computer's matches (and the LAN host's).
+var _private := {"on": false, "bots": true, "spectate": false, "score": 0, "time_min": 0, "mutators": []}
+
+
+func _private_box() -> Control:
+	var vb := VBoxContainer.new()
+	var toggle := CheckBox.new()
+	toggle.text = "Private match with custom rules"
+	toggle.button_pressed = bool(_private["on"])
+	vb.add_child(toggle)
+	var box := VBoxContainer.new()
+	box.visible = bool(_private["on"])
+	vb.add_child(box)
+	toggle.toggled.connect(func(v): _private["on"] = v; box.visible = v)
+	for opt in [["bots", "Bots fill empty slots"], ["spectate", "Watch only: bots play, you spectate"]]:
+		var cb := CheckBox.new()
+		cb.text = str(opt[1])
+		cb.button_pressed = bool(_private[opt[0]])
+		cb.toggled.connect(func(v): _private[opt[0]] = v)
+		box.add_child(cb)
+	for opt in [["score", "Score limit / rounds to win (0 = mode default)", 0, 200], ["time_min", "Time limit in minutes (0 = mode default)", 0, 30]]:
+		var row := HBoxContainer.new()
+		row.add_child(UITheme.label(str(opt[1]) + "  ", 14))
+		var sp := SpinBox.new()
+		sp.min_value = int(opt[2])
+		sp.max_value = int(opt[3])
+		sp.value = int(_private[opt[0]])
+		sp.value_changed.connect(func(v): _private[opt[0]] = int(v))
+		row.add_child(sp)
+		box.add_child(row)
+	box.add_child(UITheme.label("Mutators (stack them):", 14, UITheme.GOLD))
+	var grid := GridContainer.new()
+	grid.columns = 3
+	box.add_child(grid)
+	for mid in Mutators.ids():
+		var cb := CheckBox.new()
+		cb.text = Mutators.display_name(str(mid))
+		cb.tooltip_text = str(Mutators.get_def(str(mid)).get("desc", ""))
+		cb.button_pressed = (_private["mutators"] as Array).has(mid)
+		cb.toggled.connect(func(v):
+			var ms: Array = _private["mutators"]
+			if v and not ms.has(mid):
+				ms.append(mid)
+			elif not v:
+				ms.erase(mid))
+		grid.add_child(cb)
+	return vb
+
+
+## The match config from the Play screen, including private-match rules when they're on.
+func _match_cfg() -> Dictionary:
+	var cfg := _play_cfg.duplicate(true)
+	cfg["bot_skill"] = float(profile.setting("bot_skill"))
+	if bool(profile.setting("short_countdown")):
+		cfg["pre_ticks"] = 5
+	if bool(_private["on"]):
+		var p := {"bots": bool(_private["bots"]), "spectate": bool(_private["spectate"]), "mutators": (_private["mutators"] as Array).duplicate()}
+		var elim := str(DB.modes["modes"][cfg["mode"]].get("type", "")) == "elimination"
+		if int(_private["score"]) > 0:
+			p["rounds_to_win" if elim else "score_limit"] = int(_private["score"])
+		if int(_private["time_min"]) > 0:
+			p["round_time_s" if elim else "time_limit_s"] = int(_private["time_min"]) * 60
+		cfg["private"] = p
+	return cfg
+
+
+# ================================================================ ranked (U4)
+
+func show_ranked() -> void:
+	var vb := _frame("Ranked", 1100, 820)
+	var now := int(Time.get_unix_time_from_system())
+	var st: Dictionary = profile.data["ranked"]
+	var unlocked := profile.unlocked().has("feature:ranked")
+	var feat := Brackets.featured(now)
+	vb.add_child(_wrapped("Season %d  -  %d days left   ·   Duel and Last Stand on this week's featured bracket: %s" % [int(st["season"]) + 1, Ranked.season_days_left(now), Brackets.display_name(feat)], 16, UITheme.GOLD))
+	vb.add_child(UITheme.label(Ranked.visible_rank(st), 40, UITheme.YELLOW))
+	var peak := ("Season peak: %s   ·   " % str(Ranked.rank_for(float(st["peak"]))["label"])) if float(st["peak"]) > 0.0 else ""
+	var wr := float(st["wins"]) / maxf(1.0, float(st["matches"]))
+	vb.add_child(UITheme.label("%s%d matches, %d wins   ·   %d points" % [peak, int(st["matches"]), int(st["wins"]), int(st["points"])], 16))
+	vb.add_child(_wrapped("You earn %d points per win and %d per loss: about %d points an hour at a 50%% win rate%s." % [int(DB.ranked["points"]["win"]), int(DB.ranked["points"]["loss"]), int(round(Ranked.points_per_hour(0.5))), (", %d at your %d%%" % [int(round(Ranked.points_per_hour(wr))), int(wr * 100)]) if int(st["matches"]) >= 5 else ""], 15))
+	vb.add_child(UITheme.label("Season rewards (cosmetic only)", 20, UITheme.GOLD))
+	for r in DB.ranked["points_rewards"]:
+		var got := int(st["points"]) >= int(r["points"])
+		var hours := maxf(0.0, (int(r["points"]) - int(st["points"])) / Ranked.points_per_hour(maxf(wr, 0.5) if int(st["matches"]) >= 5 else 0.5))
+		vb.add_child(UITheme.label("%s %5d  %s%s" % ["[x]" if got else "[ ]", int(r["points"]), str(r["name"]), "" if got else ("  (about %.0f h)" % hours)], 15, UITheme.YELLOW if got else UITheme.CREAM))
+	var peaks: Array = []
+	for b in DB.ranked["peak_rewards"]:
+		peaks.append("%s: %s" % [b, str(DB.ranked["peak_rewards"][b]).split(":")[1].replace("_", " ")])
+	vb.add_child(_wrapped("End of season, by peak rank: " + ", ".join(peaks), 13))
+	var status := UITheme.label("", 15, UITheme.RED)
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD
+	status.custom_minimum_size.x = 1000
+	var hb := HBoxContainer.new()
+	vb.add_child(hb)
+	for m in DB.ranked["modes"]:
+		var mode := str(m)
+		hb.add_child(UITheme.button("Ranked %s" % str(DB.modes["modes"][mode]["name"]), func(): status.text = _start_ranked(mode)))
+	vb.add_child(status)
+	if not unlocked:
+		status.text = "Ranked unlocks at combat level 20 (you're %d)." % profile.combat_level()
+	vb.add_child(_wrapped("Ranked is human vs human only: bots never play and kills on bots never count. Host or join a LAN lobby with enough players, then start here (host). Leaving a ranked match counts as a loss and adds a queue cooldown.", 13))
+	vb.add_child(UITheme.button("Back", func(): _click(); show_play()))
+
+
+func _wrapped(text: String, size: int = 15, col: Color = UITheme.CREAM) -> Label:
+	var l := UITheme.label(text, size, col)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD
+	l.custom_minimum_size.x = 1040
+	return l
+
+
+## Starts a ranked LAN match if allowed; returns an explanation if not.
+func _start_ranked(mode: String) -> String:
+	if not profile.unlocked().has("feature:ranked"):
+		return "Ranked unlocks at combat level 20."
+	var wait := Progression.leave_cooldown_s(profile.data["ranked"]["leave_times"], int(Time.get_unix_time_from_system()))
+	if wait > 0:
+		return "Queue cooldown for leaving ranked matches: %d:%02d left." % [wait / 60, wait % 60]
+	var need := 2 * int(DB.modes["modes"][mode]["team_size"])
+	if net == null or not net.active():
+		return "Ranked needs %d human players. Host a LAN lobby (LAN multiplayer) and start from here." % need
+	if not net.is_host:
+		return "Only the host can start a ranked match."
+	var humans: Array = net._lobby_list().filter(func(p): return not bool(p.get("spectator", false)))
+	if humans.size() != need:
+		return "Ranked %s needs exactly %d players in the lobby (you have %d)." % [str(DB.modes["modes"][mode]["name"]), need, humans.size()]
+	net.start_match({"mode": mode, "map": str(DB.modes["modes"][mode]["maps"][0]), "playlist": Ranked.featured_playlist(),
+		"ranked": true, "pre_ticks": 10, "private": {"bots": false}})
+	return ""
+
+
+# ================================================================ tournaments (U8)
+
+const TOUR_PATH := "user://tournament.json"
+
+
+func _tour() -> Dictionary:
+	if FileAccess.file_exists(TOUR_PATH):
+		var j = JSON.parse_string(FileAccess.get_file_as_string(TOUR_PATH))
+		if j is Dictionary:
+			return _tour_ints(j)
+	return {}
+
+
+## JSON turns ints into floats; the tournament logic compares ints.
+func _tour_ints(t: Dictionary) -> Dictionary:
+	for k in ["size", "final", "grand_final"]:
+		if t.has(k):
+			t[k] = int(t[k])
+	for m in t.get("matches", []):
+		for k in ["id", "round", "winner", "loser"]:
+			m[k] = int(m[k])
+		for side in ["a", "b"]:
+			for k in m[side]:
+				if k != "bye":
+					m[side][k] = int(m[side][k])
+	return t
+
+
+func _save_tour(t: Dictionary) -> void:
+	var f := FileAccess.open(TOUR_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(t, "\t"))
+
+
+## Called after a LAN tournament match: reports the winner (the human on the winning team).
+func apply_tournament_result(summary: Dictionary) -> void:
+	if not summary.has("tournament_match") or net == null or not net.is_host:
+		return
+	var t := _tour()
+	if t.is_empty():
+		return
+	var w := int(summary.get("winner", -1))
+	for r in summary.get("rows", []):
+		if int(r["team"]) == w and not bool(r.get("bot", false)):
+			var idx := (t["entrants"] as Array).find(str(r["name"]))
+			if idx >= 0 and Tournament.report(t, int(summary["tournament_match"]), idx):
+				_save_tour(t)
+			return
+
+
+func show_tournament() -> void:
+	var t := _tour()
+	var vb := _frame("Tournament", 1100, 820)
+	if t.is_empty():
+		vb.add_child(UITheme.label("Enter one player per line (2-16). Matches are private Duels using the Play screen's playlist. On LAN, players whose names match the lobby can play their match while everyone else spectates; otherwise report results by hand.", 15))
+		var names := TextEdit.new()
+		names.custom_minimum_size = Vector2(500, 300)
+		var lobby_names: Array = []
+		if net != null and net.is_host:
+			for p in net._lobby_list():
+				if not bool(p.get("spectator", false)):
+					lobby_names.append(str(p["name"]))
+		names.text = "\n".join(lobby_names)
+		vb.add_child(names)
+		var kind := OptionButton.new()
+		kind.add_item("Single elimination")
+		kind.add_item("Double elimination")
+		vb.add_child(kind)
+		vb.add_child(UITheme.button("Start tournament", func():
+			var list: Array = []
+			for line in names.text.split("\n"):
+				var nm := line.strip_edges().left(12)
+				if nm != "" and not list.has(nm):
+					list.append(nm)
+			if list.size() < 2 or list.size() > 16:
+				return
+			_save_tour(Tournament.create(list, "double" if kind.selected == 1 else "single"))
+			show_tournament()))
+		vb.add_child(UITheme.button("Back", func(): _click(); show_lan()))
+		return
+	var sc := ScrollContainer.new()
+	sc.custom_minimum_size = Vector2(1060, 600)
+	vb.add_child(sc)
+	var list_box := VBoxContainer.new()
+	sc.add_child(list_box)
+	if Tournament.is_done(t):
+		list_box.add_child(UITheme.label("Champion: %s" % str(t["entrants"][Tournament.champion(t)]), 28, UITheme.YELLOW))
+		for st in Tournament.standings(t):
+			list_box.add_child(UITheme.label("%d.  %s" % [int(st[0]), str(t["entrants"][int(st[1])])], 18))
+	var ready := Tournament.ready_matches(t)
+	for m in t["matches"]:
+		if bool(m.get("bye", false)) or bool(m.get("skipped", false)):
+			continue
+		var mid := int(m["id"])
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var a := Tournament.slot_entrant(t, m["a"])
+		var b := Tournament.slot_entrant(t, m["b"])
+		if a == Tournament.BYE or b == Tournament.BYE:
+			continue  # decided automatically
+		var res := ""
+		if int(m["winner"]) >= 0:
+			res = "  ->  %s wins" % str(t["entrants"][int(m["winner"])])
+		var lab := UITheme.label(Tournament.match_label(t, mid) + res, 16, UITheme.GOLD if ready.has(mid) else UITheme.CREAM)
+		lab.custom_minimum_size.x = 520
+		row.add_child(lab)
+		if ready.has(mid):
+			for e in [a, b]:
+				row.add_child(UITheme.button("%s won" % str(t["entrants"][e]), func():
+					var tt := _tour()
+					Tournament.report(tt, mid, e)
+					_save_tour(tt)
+					show_tournament()))
+			var peers := _tour_peers(t, a, b)
+			if not peers.is_empty():
+				row.add_child(UITheme.button("Play on LAN", func():
+					var cfg := _match_cfg()
+					cfg["mode"] = "duel"
+					cfg["map"] = "castle_courtyard"
+					cfg["only_peers"] = peers
+					cfg["tournament_match"] = mid
+					var p: Dictionary = cfg.get("private", {})
+					p["bots"] = false
+					cfg["private"] = p
+					net.start_match(cfg)))
+		list_box.add_child(row)
+	var hb := HBoxContainer.new()
+	vb.add_child(hb)
+	hb.add_child(UITheme.button("New tournament", func():
+		DirAccess.remove_absolute(TOUR_PATH)
+		show_tournament()))
+	hb.add_child(UITheme.button("Back", func(): _click(); show_lan()))
+
+
+## LAN peer ids for two entrants, if both are in the host's lobby by name.
+func _tour_peers(t: Dictionary, a: int, b: int) -> Array:
+	if net == null or not net.is_host:
+		return []
+	var out: Array = []
+	for e in [a, b]:
+		for p in net._lobby_list():
+			if str(p["name"]) == str(t["entrants"][e]):
+				out.append(int(p["peer"]))
+				break
+	return out if out.size() == 2 else []
+
+
+# ================================================================ replays (U8)
+
+func show_replays() -> void:
+	var vb := _frame("Replays", 1100, 760)
+	vb.add_child(UITheme.label("Your last %d matches are saved automatically. Export copies one to %s so it isn't rotated out." % [Replay.KEEP, ProjectSettings.globalize_path(Replay.EXPORT_DIR)], 14))
+	var status := UITheme.label("", 14, UITheme.GOLD)
+	var list := Replay.list()
+	if list.is_empty():
+		vb.add_child(UITheme.label("No replays yet. Play a match!", 18, UITheme.GOLD))
+	for r in list:
+		var info: Dictionary = r["info"]
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 10)
+		var secs := int(int(r["ticks"]) * 0.6)
+		var who := ", ".join((info.get("fighters", []) as Array).slice(0, 4))
+		var lab := UITheme.label("%s  %s on %s  (%d:%02d)  %s%s" % [str(r["date"]).replace("T", " ").left(16), str(info.get("mode_name", "")), str(info.get("map", "")), secs / 60, secs % 60, who, "..." if (info.get("fighters", []) as Array).size() > 4 else ""], 14)
+		lab.custom_minimum_size.x = 720
+		lab.clip_text = true
+		hb.add_child(lab)
+		var path := str(r["path"])
+		hb.add_child(UITheme.button("Watch", func(): _click(); watch_replay.emit(path)))
+		hb.add_child(UITheme.button("Export", func():
+			var dest := Replay.export_file(path)
+			status.text = ("Exported to " + ProjectSettings.globalize_path(dest)) if dest != "" else "Export failed."
+			if dest != "":
+				OS.shell_show_in_file_manager(ProjectSettings.globalize_path(dest))))
+		hb.add_child(UITheme.button("Verify", func():
+			status.text = "Replay reproduces the match exactly." if Replay.verify(Replay.load_file(path)) else "Replay does NOT match (made with another game version?)."))
+		vb.add_child(hb)
+	vb.add_child(status)
+	vb.add_child(UITheme.button("Back", func(): _click(); show_main()))
 
 
 func _fill_maps(opt: OptionButton, mode_key: String) -> void:
@@ -280,8 +719,72 @@ func show_barracks(tab_idx: int = 0) -> void:
 	tabs.add_child(_tab_challenges())
 	tabs.add_child(_tab_prestige())
 	tabs.add_child(_tab_stats())
+	tabs.add_child(_tab_meta())
 	tabs.current_tab = tab_idx
 	vb.add_child(UITheme.button("Back", func(): _click(); show_main()))
+
+
+## U9 meta report from this computer's match telemetry.
+func _tab_meta() -> Control:
+	var r := _scroll("Meta")
+	var inner: VBoxContainer = r[1]
+	var recs := Telemetry.load_dir(Telemetry.DIR)
+	inner.add_child(UITheme.label("Win rate, pick rate and average time-to-kill per class and bracket, from the %d matches recorded on this computer (bots included). Turn telemetry on in Options to collect it." % recs.size(), 15))
+	var meta := Telemetry.meta(recs)
+	if meta.is_empty():
+		inner.add_child(UITheme.label("No matches recorded yet.", 16, UITheme.GOLD))
+	for b in meta:
+		var name := Brackets.display_name(str(b)) if Brackets.has(str(b)) else str(DB.modes["playlists"].get(b, {}).get("name", str(b).capitalize()))
+		inner.add_child(UITheme.label(name, 20, UITheme.GOLD))
+		var rt := RichTextLabel.new()
+		rt.bbcode_enabled = true
+		rt.fit_content = true
+		var t := "[code]%-20s %8s %8s %8s %10s[/code]\n" % ["Class", "Slots", "Pick", "Win", "TTK (s)"]
+		for cn in meta[b]:
+			var c: Dictionary = meta[b][cn]
+			t += "[code]%-20s %8d %7d%% %7d%% %10s[/code]\n" % [str(cn).left(20), int(c["picks"]), int(round(float(c["pick_rate"]) * 100)), int(round(float(c["win_rate"]) * 100)), ("%.1f" % float(c["ttk_s"])) if float(c["ttk_s"]) >= 0.0 else "-"]
+		rt.text = t
+		inner.add_child(rt)
+	return r[0]
+
+
+# ================================================================ patch notes (U9)
+
+## The selected class's default-class key for the "what changed for my class" filter.
+func _my_class_key() -> String:
+	var key := str(profile.data.get("selected_class", "warrior"))
+	if DB.classes["defaults"].has(key):
+		return key
+	return {"melee": "warrior", "ranged": "archer", "magic": "battlemage", "hybrid": "tribrid"}[Brackets.kit_key(profile.selected_class_def())]
+
+
+func show_patch_notes(only_mine: bool = false) -> void:
+	var vb := _frame("Patch notes", 1100, 800)
+	profile.data["seen_patch"] = DB.latest_patch()
+	profile.save()
+	var mine := _my_class_key()
+	var cb := CheckBox.new()
+	cb.text = "Only what changed for my class (%s)" % str(DB.classes["defaults"][mine]["name"])
+	cb.button_pressed = only_mine
+	cb.toggled.connect(func(v): show_patch_notes(v))
+	vb.add_child(cb)
+	var rt := RichTextLabel.new()
+	rt.bbcode_enabled = true
+	rt.custom_minimum_size = Vector2(1060, 600)
+	var tag_col := {"new": "7fd07f", "change": "ffd23f", "fix": "8fc7ff", "balance": "ff981f", "qol": "e8dcc0"}
+	var t := ""
+	for v in DB.patch_notes.get("versions", []):
+		t += "[b][color=#ff981f]%s  -  %s[/color][/b]  [color=#aaaaaa]%s[/color]\n" % [str(v["version"]), str(v["title"]), str(v["date"])]
+		for n in v["notes"]:
+			var cls: Array = n.get("classes", ["all"])
+			if only_mine and not (cls.has("all") or cls.has(mine)):
+				continue
+			var tg := str(n.get("tag", "change"))
+			t += "  [color=#%s][%s][/color] %s\n" % [str(tag_col.get(tg, "e8dcc0")), tg.to_upper(), str(n["text"])]
+		t += "\n"
+	rt.text = t
+	vb.add_child(rt)
+	vb.add_child(UITheme.button("Continue", func(): _click(); show_main()))
 
 
 func _scroll(name: String) -> Array:
@@ -613,6 +1116,8 @@ func show_options() -> void:
 	nh.add_child(ne)
 	for opt in [
 		["tick_sound", "Tick metronome sound (practise prayer switching)"],
+		["tick_visual", "Visual tick indicator (flashes every game tick)"],
+		["telemetry", "Save match telemetry on this computer (no personal data; for playtest reports)"],
 		["switch_hotkeys", "Gear-switch hotkeys Z / X / C (QoL toggle - GDD open question)"],
 		["colorblind", "Colour-blind palette (blue / orange teams)"],
 		["short_countdown", "Short pre-match countdown (3 s instead of 15 s)"],
@@ -646,6 +1151,17 @@ func show_options() -> void:
 		sfx.volume = v
 		sfx.play("click"))
 	vb.add_child(vs)
+	var tel := HBoxContainer.new()
+	vb.add_child(tel)
+	var tel_status := UITheme.label("", 13, UITheme.GOLD)
+	tel.add_child(UITheme.button("Export telemetry", func():
+		var path := Telemetry.export_zip()
+		if path == "":
+			tel_status.text = "  Nothing to export yet."
+		else:
+			tel_status.text = "  Saved " + ProjectSettings.globalize_path(path)
+			OS.shell_show_in_file_manager(ProjectSettings.globalize_path(path))))
+	tel.add_child(tel_status)
 	vb.add_child(HSeparator.new())
 	vb.add_child(UITheme.label("Developer / testing", 16, UITheme.GOLD))
 	var dev := HBoxContainer.new()
@@ -666,9 +1182,15 @@ func show_options() -> void:
 # ================================================================ results
 
 func show_results(summary: Dictionary, applied: Dictionary) -> void:
+	if summary.has("replay_view"):
+		show_replays()
+		return
+	if summary.has("training"):
+		show_training_results(summary, applied)
+		return
 	var vb := _frame("Match results", 1240, 840)
 	var won := bool(summary.get("won", false))
-	var head := UITheme.label("%s  -  %s on %s%s" % ["VICTORY" if won else ("FORFEIT" if summary.get("forfeit", false) else ("DRAW" if int(summary.get("winner", -1)) < 0 and not bool(summary.get("ffa", false)) else "DEFEAT")), summary.get("mode_name", ""), summary.get("map", ""), "  (Even Ground)" if summary.get("playlist", "") == "even_ground" else ""], 24, UITheme.YELLOW if won else UITheme.RED)
+	var head := UITheme.label("%s  -  %s on %s%s" % ["VICTORY" if won else ("FORFEIT" if summary.get("forfeit", false) else ("DRAW" if int(summary.get("winner", -1)) < 0 and not bool(summary.get("ffa", false)) else "DEFEAT")), summary.get("mode_name", ""), summary.get("map", ""), ("  (%s)" % Brackets.display_name(str(summary["bracket"]))) if str(summary.get("bracket", "")) != "" else ""], 24, UITheme.YELLOW if won else UITheme.RED)
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(head)
 	var cols := HBoxContainer.new()
@@ -715,18 +1237,107 @@ func show_results(summary: Dictionary, applied: Dictionary) -> void:
 		rt += "[b][color=#%s]%s level %d -> %d![/color][/b]\n" % [UITheme.style_color(s).to_html(false), s.capitalize(), int(up["from"]), int(up["to"])]
 		for u in up["unlocks"]:
 			rt += "    Unlocked: %s\n" % u
+	var rk: Dictionary = applied.get("ranked", {})
+	if not rk.is_empty():
+		var mid := Ranked.mid_reward()
+		rt += "\n[b][color=#ff981f]Ranked[/color][/b]  %s%s   +%d points (%d)%s\n" % [str(rk["after"]),
+			("  (%+.0f)" % float(rk["delta"])) if bool(rk["placed"]) else "", int(rk["points"]), int(rk["total_points"]),
+			"" if int(rk["total_points"]) >= int(mid.get("points", 0)) else ("  -  %d to %s" % [int(mid["points"]) - int(rk["total_points"]), str(mid["name"])])]
+		if float(rk["mult"]) < 1.0:
+			rt += "  [color=#ff8060]Repeat opponent: this match counted %d%%.[/color]\n" % int(float(rk["mult"]) * 100)
+		for g in rk["rewards"]:
+			rt += "  [color=#ffd23f]Unlocked %s[/color]\n" % str(g)
+	rt += _fight_report_text(summary.get("fight_report", {}))
 	right.text = rt
 	if not (applied.get("level_ups", []) as Array).is_empty():
 		sfx.play("level_up")
+	if summary.has("lab"):
+		vb.add_child(_lab_vote_row(summary))
+	if Profile.playtest_build():
+		vb.add_child(_feedback_row(str(summary.get("telemetry_path", ""))))
 	var hb := HBoxContainer.new()
 	vb.add_child(hb)
-	hb.add_child(UITheme.button("Play again", func():
-		var cfg := _play_cfg.duplicate()
-		cfg["bot_skill"] = float(profile.setting("bot_skill"))
-		if bool(profile.setting("short_countdown")):
-			cfg["pre_ticks"] = 5
-		start_match.emit(cfg)))
+	hb.add_child(UITheme.button("Play again", func(): start_match.emit(_match_cfg())))
+	hb.add_child(UITheme.button("Change mode", func(): show_play()))
 	hb.add_child(UITheme.button("Main menu", func(): show_main()))
+
+
+## U6 post-match fight report.
+func _fight_report_text(r: Dictionary) -> String:
+	if r.is_empty():
+		return ""
+	var t := "\n[b][color=#ff981f]Fight report[/color][/b]\n"
+	t += "  Ward accuracy: [b]%s[/b] of %d incoming hits" % [_pct(float(r["ward_accuracy"])), int(r["incoming"])]
+	var by: Dictionary = r.get("ward_accuracy_by_style", {})
+	var bits: Array = []
+	for s in ["melee", "ranged", "magic"]:
+		if float(by.get(s, -1.0)) >= 0.0:
+			bits.append("[color=#%s]%s %s[/color]" % [UITheme.style_color(s).to_html(false), s.capitalize(), _pct(float(by[s]))])
+	if not bits.is_empty():
+		t += "  (" + ", ".join(bits) + ")"
+	t += "\n"
+	if float(r["reaction_avg"]) >= 0.0:
+		t += "  Ward reaction after an enemy switched style: %.1f ticks (%d switches)\n" % [float(r["reaction_avg"]), int(r["reaction_samples"])]
+	t += "  Special attacks: %d used of about %d available   Freeze uptime: %s\n" % [int(r["specs_used"]), int(r["specs_available"]), _pct(float(r["freeze_uptime"]))]
+	t += "  Food left unused at death: %d   Healing wasted: %d\n" % [int(r["food_unused"]), int(r["wasted_heal"])]
+	var dpt: Dictionary = r.get("dmg_per_tick", {})
+	t += "  Damage per tick: [color=#e04a3a]melee %.2f[/color]  [color=#4fbf4f]ranged %.2f[/color]  [color=#4f8fff]magic %.2f[/color]\n" % [float(dpt.get("melee", 0)), float(dpt.get("ranged", 0)), float(dpt.get("magic", 0))]
+	t += "  [color=#ffd23f]Tip: %s[/color]\n" % CombatLog.tip(r)
+	return t
+
+
+func _pct(x: float) -> String:
+	return "-" if x < 0.0 else "%d%%" % int(round(x * 100.0))
+
+
+## U7: one-tap Lab vote after a Lab match. Stored in the profile (shown next week) and in telemetry.
+func _lab_vote_row(summary: Dictionary) -> Control:
+	var lab: Dictionary = summary["lab"]
+	var row := HBoxContainer.new()
+	row.add_child(UITheme.label("The Lab: %s. Keep it, change it or drop it?  " % str(lab.get("name", "")), 16, Color("8fc7ff")))
+	var done := UITheme.label("", 14, UITheme.GOLD)
+	var buttons: Array = []
+	for v in ["keep", "change", "drop"]:
+		var b := UITheme.button(v.capitalize(), func():
+			var votes: Dictionary = profile.data.get("lab_votes", {})
+			var wk := str(int(lab.get("week", 0)))
+			if not votes.has(wk):
+				votes[wk] = {"mutator": str(lab.get("mutator", "")), "keep": 0, "change": 0, "drop": 0}
+			votes[wk][v] = int(votes[wk].get(v, 0)) + 1
+			profile.data["lab_votes"] = votes
+			profile.save()
+			var lab_rec: Dictionary = lab.duplicate()
+			lab_rec["vote"] = v
+			Telemetry.amend(str(summary.get("telemetry_path", "")), {"lab": lab_rec})
+			for bb in buttons:
+				(bb as Button).disabled = true
+			done.text = "  Vote recorded: %s. Results show on the Play screen next week." % v)
+		buttons.append(b)
+		row.add_child(b)
+	row.add_child(done)
+	return row
+
+
+## Playtest feedback (U11): 1-5 rating plus free text, saved into this match's telemetry record.
+func _feedback_row(path: String) -> Control:
+	var row := HBoxContainer.new()
+	row.add_child(UITheme.label("Playtest feedback  ", 15, UITheme.GOLD))
+	var rating := OptionButton.new()
+	for i in range(1, 6):
+		rating.add_item("%d / 5" % i, i)
+	rating.select(2)
+	row.add_child(rating)
+	var text := LineEdit.new()
+	text.placeholder_text = "What felt good or bad this match?"
+	text.custom_minimum_size.x = 560
+	text.max_length = 300
+	row.add_child(text)
+	var done := UITheme.label("", 14, UITheme.GOLD)
+	row.add_child(UITheme.button("Send", func():
+		Telemetry.amend(path, {"feedback": {"rating": rating.get_selected_id(), "text": text.text.strip_edges()}})
+		done.text = "  Thanks!" if path != "" else "  Saved nowhere: telemetry is off."))
+	row.add_child(done)
+	return row
 
 
 # ================================================================ LAN multiplayer
@@ -744,8 +1355,10 @@ Humans are split across teams and bots fill the empty slots. The host picks mode
 	var players := RichTextLabel.new()
 	players.bbcode_enabled = true
 	players.custom_minimum_size = Vector2(860, 220)
+	var spec_cb := CheckBox.new()
+	spec_cb.text = "Join or host as a spectator (watch with the overlay, don't play)"
 	var me := func() -> Dictionary:
-		return {"name": str(profile.data["name"]), "class_def": profile.selected_class_def(), "levels": profile.levels()}
+		return {"name": str(profile.data["name"]), "class_def": profile.selected_class_def(), "levels": profile.levels(), "spectator": spec_cb.button_pressed}
 	var hb := HBoxContainer.new()
 	vb.add_child(hb)
 	hb.add_child(UITheme.button("Host game", func():
@@ -759,6 +1372,7 @@ Humans are split across teams and bots fill the empty slots. The host picks mode
 	hb.add_child(UITheme.button("Join", func():
 		_click()
 		net.join(ip.text.strip_edges(), me.call())))
+	vb.add_child(spec_cb)
 	vb.add_child(status)
 	vb.add_child(UITheme.label("Players in lobby", 18, UITheme.GOLD))
 	vb.add_child(players)
@@ -770,15 +1384,12 @@ Humans are split across teams and bots fill the empty slots. The host picks mode
 	var start := UITheme.button("Start match (host)", func():
 		_click()
 		if net.is_host:
-			var cfg := _play_cfg.duplicate()
-			cfg["bot_skill"] = float(profile.setting("bot_skill"))
-			if bool(profile.setting("short_countdown")):
-				cfg["pre_ticks"] = 5
-			net.start_match(cfg)
+			net.start_match(_match_cfg())
 		else:
 			status.text = "Only the host can start the match.")
 	start.custom_minimum_size.y = 48
 	vb.add_child(start)
+	vb.add_child(UITheme.button("Tournament helper", func(): _click(); show_tournament()))
 	vb.add_child(UITheme.button("Leave / Back", func():
 		_click()
 		net.close()
@@ -790,9 +1401,12 @@ Humans are split across teams and bots fill the empty slots. The host picks mode
 		if not is_instance_valid(players):
 			return
 		var t := ""
+		var cls: Array = list.filter(func(p): return not bool(p.get("spectator", false))).map(func(p): return int(p["cl"]))
+		if cls.size() >= 2 and int(cls.max()) - int(cls.min()) > Matchmaker.window(0.0):
+			t += "[color=#ff981f]Combat levels %d-%d: wider than the %d-level casual window. Consider a bracket playlist for even gear.[/color]\n" % [int(cls.min()), int(cls.max()), Matchmaker.window(0.0)]
 		for p in list:
-			t += "%s  (combat %d)%s
-" % [p["name"], int(p["cl"]), "  [host]" if int(p["peer"]) == 1 else ""]
+			t += "%s  (combat %d)%s%s
+" % [p["name"], int(p["cl"]), "  [host]" if int(p["peer"]) == 1 else "", "  [spectator]" if bool(p.get("spectator", false)) else ""]
 		players.text = t
 	for c in net.status.get_connections():
 		net.status.disconnect(c["callable"])

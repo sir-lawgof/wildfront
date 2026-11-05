@@ -190,3 +190,20 @@ static func match_xp(f: Fighter, won: bool, rounds_won: int, primary_style: Stri
 static func _add(out: Dictionary, style: String, amount: int, label: String) -> void:
 	out[style] += amount
 	(out["lines"] as Array).append({"label": label, "amount": amount, "style": style})
+
+
+## Ranked queue cooldown in seconds after the latest leave (U5; enforced once ranked exists in U4).
+## leave_times: unix seconds of past leaves, including the one just made.
+static func leave_cooldown_s(leave_times: Array, now: int) -> int:
+	var window := int(round(float(DB.rule("leave_cooldown_window_h", 24)) * 3600.0))
+	var steps: Array = DB.rule("leave_cooldown_steps_min", [0])
+	var recent := 0
+	var latest := -1
+	for t in leave_times:
+		if int(t) > now - window:
+			recent += 1
+			latest = maxi(latest, int(t))
+	if recent == 0 or steps.is_empty():
+		return 0
+	var mins := int(steps[mini(recent - 1, steps.size() - 1)])
+	return maxi(0, latest + mins * 60 - now)

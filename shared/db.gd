@@ -39,6 +39,11 @@ static var consumables_meta: Dictionary = {}
 static var maps: Dictionary = {}        ## id -> raw json
 static var weapon_types: Dictionary = {}
 static var armour_types: Dictionary = {}
+static var brackets: Dictionary = {}    ## data/brackets.json (U2, see shared/brackets.gd)
+static var training: Dictionary = {}    ## data/training.json (U1, see server/training.gd)
+static var patch_notes: Dictionary = {} ## data/patch_notes.json (U9)
+static var mutators: Dictionary = {}    ## data/mutators.json (U7, see shared/mutators.gd)
+static var ranked: Dictionary = {}      ## data/ranked.json (U4, see shared/ranked.gd)
 
 
 static func ensure_loaded() -> void:
@@ -78,6 +83,12 @@ static func load_all() -> void:
 	_load_unlocks()
 	classes = load_json("res://data/classes.json")
 	modes = load_json("res://data/modes.json")
+	brackets = load_json("res://data/brackets.json")
+	training = load_json("res://data/training.json")
+	patch_notes = load_json("res://data/patch_notes.json")
+	mutators = load_json("res://data/mutators.json")
+	ranked = load_json("res://data/ranked.json")
+	Brackets._unl_cache = {}
 	_load_streaks()
 	_load_maps()
 	loaded = true
@@ -344,7 +355,88 @@ static func exists(entry: String) -> bool:
 
 # ---------------------------------------------------------------- validation
 
+const TRAINING_GOALS: Array[String] = ["wards", "freezes", "specials", "switching", "combo_eating", "reading"]
+const BOT_CONFIG_KEYS: Array[String] = ["mode", "skill", "reaction_ticks", "prayer_accuracy", "pray", "eat_hp", "eat_delay",
+	"fake_switch_chance", "spec_hp", "spec_chance", "attack_range", "damage_mult", "cycle_every", "telegraph_ticks", "walk"]
+const BOT_MODES: Array[String] = ["fight", "cycle", "flee", "freezer", "telegraph", "passive"]
+
+
+static func _validate_kit_ref(where: String, kit: Dictionary) -> void:
+	var bid := str(kit.get("bracket", ""))
+	var key := str(kit.get("kit", ""))
+	if bid != "" and not (brackets.get("brackets", {}) as Dictionary).has(bid):
+		errors.append("%s: unknown bracket %s" % [where, bid])
+	elif bid != "" and key != "player" and not (brackets["brackets"][bid]["kits"] as Dictionary).has(key):
+		errors.append("%s: bracket %s has no kit %s" % [where, bid, key])
+
+
+static func _validate_bot_config(where: String, cfg: Dictionary) -> void:
+	for k in cfg:
+		if not BOT_CONFIG_KEYS.has(str(k)):
+			errors.append("%s: unknown bot config key %s" % [where, k])
+	if cfg.has("mode") and not BOT_MODES.has(str(cfg["mode"])):
+		errors.append("%s: unknown bot mode %s" % [where, cfg["mode"]])
+
+
+static func _validate_patch_notes() -> void:
+	var vs: Array = patch_notes.get("versions", [])
+	if vs.is_empty():
+		errors.append("patch_notes.json: no versions")
+	for v in vs:
+		for k in ["version", "date", "title", "notes"]:
+			if not (v as Dictionary).has(k):
+				errors.append("patch_notes.json: version missing '%s'" % k)
+		for n in v.get("notes", []):
+			for c in n.get("classes", []):
+				if str(c) != "all" and not (classes.get("defaults", {}) as Dictionary).has(str(c)):
+					errors.append("patch_notes.json %s: unknown class %s" % [v.get("version", "?"), c])
+	if not vs.is_empty():
+		var pv := str(ProjectSettings.get_setting("application/config/version", ""))
+		if pv != str(vs[0].get("version", "")):
+			errors.append("patch_notes.json newest version %s doesn't match project version '%s'" % [vs[0].get("version", ""), pv])
+
+
+## Newest patch notes version ("" if none).
+static func latest_patch() -> String:
+	var vs: Array = patch_notes.get("versions", [])
+	return str(vs[0]["version"]) if not vs.is_empty() else ""
+
+
+static func _validate_training() -> void:
+	var ids := {}
+	for d in training.get("drills", []):
+		var w := "Drill %s" % str(d.get("id", "?"))
+		ids[str(d.get("id", ""))] = true
+		if not TRAINING_GOALS.has(str(d.get("goal", {}).get("type", ""))):
+			errors.append("%s: unknown goal type" % w)
+		_validate_kit_ref(w + " player_kit", d.get("player_kit", {}))
+		_validate_kit_ref(w + " bot kit", d.get("bot", {}).get("kit", {}))
+		_validate_bot_config(w, d.get("bot", {}).get("config", {}))
+		if d.has("stage2_bot_config"):
+			_validate_bot_config(w + " stage 2", d["stage2_bot_config"])
+		for row in d.get("player_inventory", []):
+			if not items.has(str(row[0])):
+				errors.append("%s: unknown item %s" % [w, row[0]])
+	for e in training.get("exams", []):
+		var w := "Exam %s" % str(e.get("id", "?"))
+		if ids.has(str(e.get("id", ""))):
+			errors.append("%s: duplicate id" % w)
+		if not ["learning", "aspirational"].has(str(e.get("label", ""))):
+			errors.append("%s: label must be learning or aspirational" % w)
+		_validate_kit_ref(w + " player_kit", e.get("player_kit", {}))
+		_validate_bot_config(w, e.get("bot", {}).get("config", {}))
+
+
 static func _validate() -> void:
+	Brackets.validate(errors)
+	_validate_training()
+	_validate_patch_notes()
+	Mutators.validate(errors)
+	Ranked.validate(errors)
+	for pk in modes.get("playlists", {}):
+		var pl: Dictionary = modes["playlists"][pk]
+		if str(pl.get("bracket", "")) != "" and not (brackets.get("brackets", {}) as Dictionary).has(str(pl["bracket"])):
+			errors.append("Playlist %s references unknown bracket %s" % [pk, pl["bracket"]])
 	for id in items:
 		var it: Dictionary = items[id]
 		for key in ["id", "name", "slot", "bonuses", "style"]:

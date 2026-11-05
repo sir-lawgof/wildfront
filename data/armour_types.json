@@ -10,8 +10,8 @@
         {"slot": "shield", "id": "kiteshield", "name": "kiteshield", "fraction": 0.18},
         {"slot": "feet",   "id": "boots",      "name": "boots",      "fraction": 0.07}
       ],
-      "base": {"def_melee": 40, "def_ranged": 36, "def_magic": -12, "att_magic": -30, "att_ranged": -10},
-      "per_tier": {"def_melee": 9, "def_ranged": 8, "def_magic": -1}
+      "base": {"def_melee": 40, "def_ranged": 36, "def_magic": 0, "att_magic": -30, "att_ranged": -10},
+      "per_tier": {"def_melee": 9, "def_ranged": 8, "def_magic": 0}
     },
     "hide": {
       "style": "ranged", "family": "hide", "label": "armour",
@@ -34,8 +34,8 @@
         {"slot": "hands", "id": "gloves",      "name": "gloves",      "fraction": 0.15},
         {"slot": "feet",  "id": "boots",       "name": "boots",       "fraction": 0.10}
       ],
-      "base": {"def_melee": 6, "def_ranged": 10, "def_magic": 26, "att_magic": 20, "prayer": 2},
-      "per_tier": {"def_melee": 2, "def_ranged": 3, "def_magic": 7, "att_magic": 5}
+      "base": {"def_melee": 2, "def_ranged": 4, "def_magic": 26, "att_magic": 20, "prayer": 2},
+      "per_tier": {"def_melee": 1, "def_ranged": 2, "def_magic": 7, "att_magic": 5}
     }
   },
   "sidegrades": [

@@ -73,7 +73,7 @@ func setup(info: Dictionary, my_team: int, me: bool, ffa: bool) -> void:
 	# Name, HP bar and overhead icon.
 	_name_lbl = Label3D.new()
 	_name_lbl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_name_lbl.text = str(info["name"])
+	_name_lbl.text = str(info["name"]) + (" [BOT]" if bool(info.get("bot", false)) else "")
 	_name_lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_name_lbl.no_depth_test = true
 	_name_lbl.font_size = 34
